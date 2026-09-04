@@ -1,0 +1,9 @@
+Aesthetic Intel v1.0.10
+- Automatic rolling reporting periods using business current date
+- Calendar inputs only for Custom frequency
+- Individual immediate AI uploads with real transfer progress
+- PDF and image support for Podium and Growth99+
+- Source metrics merge into one period record
+- Database reconnect after AI processing
+- Standalone CallRail removed
+- Uploaded source files are not stored permanently

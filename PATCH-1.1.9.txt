@@ -1,0 +1,5 @@
+Aesthetic Intel v1.1.9 — Boulevard Run Sync Now
+
+Adds manual one-time Boulevard API report export synchronization, live polling, CSV download, header validation, parser processing, dashboard generation, partial success handling, retry, status history, and protected sync storage.
+
+Install: extract inside public_html and replace existing files. Do not run install.php. Database tables/columns are added automatically.

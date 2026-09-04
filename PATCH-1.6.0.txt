@@ -1,0 +1,122 @@
+AESTHETIC INTEL v1.6.0 — BUSINESS FEATURE CONTROLS
+Prepared: August 24, 2026
+
+PURPOSE
+-------
+Add a single Super Admin-controlled feature management system so each business
+workspace can show only the Aesthetic Intel modules it actually uses.
+
+WHAT IS NEW
+-----------
+Super Admin > Businesses > Edit / Features now includes a Feature Controls area.
+
+Per-business switches are available for:
+- Boulevard
+- Boulevard API Beta
+- Google Business Profile
+- Podium
+- Growth99+
+- Google Analytics 4
+- Provider KPI Dashboard
+- Unified Reports
+- Review with AI
+- Data Transfer
+- Smart Search
+
+CORE WORKSPACE ITEMS ALWAYS REMAIN AVAILABLE
+--------------------------------------------
+The following are intentionally not toggleable:
+- Dashboard
+- Reports & Downloads shell
+- Business Settings
+- Documentation
+- Authentication/security
+- Super Admin administration
+- Backup & Restore
+
+This prevents a business from losing access to the controls needed to manage or
+recover its workspace.
+
+DISABLE DOES NOT DELETE
+-----------------------
+Disabling a feature:
+- hides it from the business Dashboard where applicable,
+- hides it from the left navigation,
+- removes it from permission-aware Documentation / Smart Search discovery,
+- blocks direct access to protected feature routes,
+- excludes disabled data sources from active Unified Reports,
+- hides disabled-source AI reviews,
+- preserves all existing database records, uploads, reports, KPI history,
+  settings, and reviews.
+
+Re-enabling the feature restores access to the preserved data immediately.
+
+PROVIDER KPI
+------------
+Provider KPI remains stored in its existing provider_kpi_settings record.
+v1.6.0 moves its existing Super Admin activation control into the unified
+Feature Controls interface rather than introducing a second conflicting flag.
+Existing Provider KPI enabled/disabled state is preserved during upgrade.
+
+BOULEVARD API DEPENDENCY
+------------------------
+Boulevard API Beta depends on Boulevard.
+If Boulevard is disabled, Boulevard API is also disabled and cannot be saved as
+an active child feature.
+
+The background Boulevard worker also skips API runs for businesses where Boulevard API is disabled. Queued state is preserved so work can resume after re-enablement instead of being deleted.
+
+DATABASE
+--------
+Adds:
+- business_features
+
+Columns:
+- business_id
+- feature_code
+- enabled
+- updated_by
+- created_at
+- updated_at
+
+Existing businesses are automatically initialized with the previously available
+optional features enabled. Provider KPI keeps its existing business-specific
+activation state.
+
+SECURITY / SERVER-SIDE ENFORCEMENT
+----------------------------------
+Feature state is enforced server-side in addition to UI hiding.
+Direct requests to a disabled feature are rejected/redirected safely.
+AJAX/JSON endpoints return a feature-disabled 403 response where applicable.
+
+AUDIT
+-----
+Feature changes are written to audit_logs using:
+- business_feature_controls_updated
+
+The normal business_updated audit event also records the feature change summary.
+Provider KPI changes continue to record provider_kpi_settings_updated.
+
+DOCUMENTATION / SMART SEARCH
+----------------------------
+The in-app Documentation registry now includes Business Feature Controls.
+Feature-specific help/search topics are filtered out when the corresponding
+business feature is disabled.
+
+INSTALLATION
+------------
+Normal upgrade only:
+1. Back up the current live public_html and database.
+2. Upload the v1.6.0 ZIP into public_html.
+3. Extract and choose Replace existing files.
+4. DO NOT run install.php.
+5. Refresh Aesthetic Intel while signed in as Super Admin.
+6. Automatic migrations create/initialize business_features.
+7. Open Businesses > Edit / Features for a business.
+8. Toggle one non-critical feature, save, and confirm that it disappears from
+   that business workspace and returns after re-enabling.
+
+IMPORTANT
+---------
+This release ZIP must not overwrite live config/database.php, app-key.php,
+boulevard-worker-key.php, uploads, logs, or retained backup archives.

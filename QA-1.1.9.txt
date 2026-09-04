@@ -1,0 +1,18 @@
+Aesthetic Intel v1.1.9 — QA Summary
+
+Completed checks
+- All PHP files pass php -l syntax validation.
+- assets/js/app.js passes Node.js syntax validation.
+- assets/js/boulevard-sync.js passes Node.js syntax validation.
+- Weekly date interval helper verified: 2026-07-29 to 2026-08-05 becomes P7D.
+- Date-filter ranking verified: Sales Summary prefers Sale Date and rejects Client Birth Date.
+- Super Admin and business-context guards are present on sync routes.
+- CSRF protection is present on Run Sync Now, live refresh, and retry actions.
+- Existing Boulevard credentials, fetched report catalogue, and saved mappings are not changed by this patch.
+- Downloaded CSV files are stored only in protected storage, validated, then copied into the normal Boulevard batch workflow.
+- Signed Boulevard export URLs are removed from Aesthetic Intel after successful processing.
+- One failed report does not block successful reports from generating a partial dashboard.
+- ZIP package integrity checked after creation.
+
+Live verification still required
+A live Boulevard export cannot be executed in the offline build environment because the RUMA credentials and Boulevard account are not available here. After installation, run one Weekly sync in RUMA and confirm the exported CSV headers and dashboard totals against a manual Boulevard export before enabling future scheduling.

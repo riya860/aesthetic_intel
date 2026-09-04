@@ -1,0 +1,14 @@
+Aesthetic Intel v1.5.2 — Change 2: Super Admin-only Provider KPI activation
+
+Scope
+- Provider KPI module enable/disable and module-name configuration are Super Admin-only.
+- Business users never receive the module activation form.
+- When disabled, Provider KPI is hidden from business-user navigation/dashboard and direct access remains blocked.
+- When enabled, authorized business users automatically receive Provider KPI navigation according to their existing Provider KPI access role.
+- Super Admin can still open/configure Provider KPI while viewing a business even when the module is disabled.
+
+Security
+- Server-side authorization is enforced for settings POST requests; hiding the form is not the security boundary.
+- Settings POST requests must explicitly use action=save_settings.
+- Provider KPI user roles and existing provider isolation remain unchanged.
+- No database migration is required.

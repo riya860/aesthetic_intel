@@ -1,0 +1,8 @@
+Aesthetic Intel v1.2.1 QA
+
+- PHP syntax: all PHP files passed.
+- JavaScript syntax: all JavaScript files passed Node syntax checking.
+- Replacement ZIP excludes config/database.php, config/app-key.php, config/boulevard-worker-key.php, storage, and user data.
+- Signed URL query strings are stripped from diagnostic logs.
+- Diagnostic logging contains no CSV content or API credentials.
+- Existing sync database schema remains compatible; no installer is required.

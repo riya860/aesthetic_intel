@@ -1,0 +1,14 @@
+AESTHETIC INTEL v1.0.3
+
+Adds the Google Business Profile manual-entry module.
+
+Features:
+- Manual GBP entry for interactions, calls, directions, website clicks, reviews, rating, and unanswered reviews.
+- Saves each entry by business and reporting period.
+- Calculates new weekly activity from cumulative GBP totals.
+- Compares current weekly activity with the previous saved weekly activity when enough history exists.
+- Review and unanswered-review interpretation.
+- GBP history and detail pages.
+- Business dashboard shortcut and latest GBP summary.
+
+No reinstall is required. Database tables are created automatically.

@@ -1,0 +1,77 @@
+Aesthetic Intel v1.3.0 — Provider KPI Dashboard Phase 1
+Live Testing Order
+
+IMPORTANT
+- Test with a temporary Remedy provider and temporary business user first.
+- Do not import production data until the preview and calculations have been checked.
+- Boulevard API remains Beta and is not changed by this module.
+
+1. Install and migration
+- Upload/extract the v1.3.0 patch in public_html with Replace existing files.
+- Do not run install.php.
+- Sign in as Super Admin and refresh once. Database tables are added automatically.
+
+2. Enable the module
+- Open Remedy through Super Admin Business View.
+- Open Provider KPI.
+- Enable Provider KPI Dashboard for the business.
+- Confirm the Provider KPI menu appears.
+
+3. Add providers
+- Open Provider KPI → Providers.
+- Add two temporary providers with provider type, department, status, and display order.
+- Confirm duplicate names are rejected.
+
+4. Assign access
+- Open Super Admin → Users.
+- Assign one user as Leadership, one as Data Uploader, and one as Provider.
+- Link the Provider user to the matching provider profile.
+
+5. Download and fill template
+- Open Provider KPI → Data Import.
+- Download the CSV template.
+- Keep one row per provider.
+- Use the requested month in MM-YYYY context on the upload screen; dates are stored as the first day of that month.
+
+6. Validate before import
+- Upload the CSV and review the preview.
+- Confirm recognized providers, new providers, KPI columns, warnings, and errors.
+- Confirm duplicate provider rows and non-numeric values are blocked.
+- Confirm no data is saved until Confirm Import is clicked.
+
+7. Confirm import
+- For a new provider, enable Create missing providers only after reviewing the name.
+- Enable Replace existing values only when intentionally correcting the same month.
+- Confirm the import and verify the saved-value summary.
+
+8. Set goals
+- Open Provider KPI → Goals.
+- Select provider and month.
+- Add goals for Production, Revenue/Hour, Utilization, Average Ticket, Retail, Memberships, and New Patients.
+- Test Copy Previous Month.
+
+9. Verify calculations
+- Open Clinic Overview and each provider scorecard.
+- Confirm Current Month, Previous Month, MoM, and YTD.
+- Confirm Actual, Goal, Variance, % to Goal, and green/yellow/red status.
+- Manually verify at least:
+  Utilization = Productive Hours / Available Clinical Hours × 100
+  Open Hours = Available Clinical Hours − Productive Hours
+  Revenue/Hour = Total Revenue / Revenue-Producing Hours
+  Revenue/Visit = Total Revenue / Total Patients Seen
+  Average Service Revenue = Total Production / Total Services Performed
+
+10. Verify access control
+- Leadership: clinic overview, all providers, goals, imports.
+- Data Uploader: overview and imports; no provider/goals administration.
+- Provider: only their linked personal scorecard.
+- User with None: no Provider KPI access.
+
+11. Export and mobile
+- Export one provider scorecard CSV.
+- Use browser Print / Save as PDF and inspect formatting.
+- Check dashboard, tables, forms, and navigation on mobile.
+
+12. Cleanup
+- Delete or deactivate temporary providers/users after testing.
+- Keep the test import only if desired; production import should use verified files.

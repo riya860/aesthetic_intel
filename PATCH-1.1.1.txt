@@ -1,0 +1,15 @@
+Aesthetic Intel v1.1.1 — Boulevard AI Mapping Assistant
+
+Added:
+- AI-assisted matching for fetched Boulevard saved reports
+- Confidence score, recommendation reason, and review status
+- Searchable report dropdowns with report IDs and duplicate-name indicators
+- One-click use of a suggestion without saving automatically
+- Expected CSV header signatures for all current Boulevard report types
+- Additive suggestion storage that does not overwrite current mappings
+- Safer error handling so an OpenAI matching error cannot mark the Boulevard connection as failed
+
+Important:
+- Existing Boulevard credentials, connection, fetched report list, and saved mappings are preserved.
+- AI suggestions are recommendations only. Actual CSV-header/filter verification will be performed by the upcoming Run Sync Now step.
+- No installer is required. Database additions run automatically.

@@ -1,0 +1,10 @@
+Aesthetic Intel v1.0.6
+
+- Reorganized business navigation into Dashboard, Tools, Reports & Downloads, and Settings.
+- Tools submenu now includes Google Business Profile, Boulevard, Podium, Growth99+, Google Analytics 4, and CallRail.
+- Podium now has separate required Inbox and Calls screenshot fields.
+- Growth99+ now has separate Leads Insights, Cliffhanger Analytics, and CallRail Insights screenshot fields.
+- GA4 now has one dedicated Reports snapshot PDF/image field.
+- CallRail now has one dedicated screenshot field.
+- AI extraction saves automatically without a review/confirmation form.
+- Added latest extracted metric preview and source-specific history.

@@ -1,0 +1,54 @@
+Aesthetic Intel v1.5.6 — QA Summary
+Final Change #4: Report Intelligence + On-Demand AI Reviewed Reports
+
+Base verification
+- Confirmed public_html (19).zip reports version 1.5.5.
+- v1.5.6 was built as a delta on that exact base.
+
+Static application QA
+- 82 PHP files passed php -l.
+- 9 JavaScript files passed node --check.
+- New routes, views, migration, documentation, and version files passed static assertions.
+
+Review with AI safety checks
+- Exactly one OpenAI request call site exists in the new AI review module.
+- Completed review + unchanged source hash returns the cached review without another AI call.
+- Regeneration is explicit and role restricted.
+- Provider-role users are blocked from clinic-wide AI reviews.
+- Review with AI contains no Report Intelligence approval call.
+- New review code contains no INSERT/UPDATE writes to Boulevard batches, GBP entries, or AI-extraction source records.
+- Original-number integrity instruction is included in the AI prompt and AI Reviewed Report.
+- User-facing AI failures do not expose raw API/database errors.
+- Failed AI review updates only its separate review status and leaves the original report intact.
+
+Whole-report / token checks
+- Boulevard normalization mirrors visible KPI, daily performance, revenue mix, provider detail, top retail, operations, MRR trend, validation, and existing rule-based insights.
+- Unified normalization includes every included source plus held-source/warning metadata, existing summary/focus, and each source's visible report data.
+- GBP normalization includes available activity metrics, notes, comparable context, and validation state.
+- Unused internal arrays, codebase data, credentials, and raw uploaded files are not sent to Review with AI.
+
+Workflow / permission checks
+- Review with AI forms are POST + CSRF protected.
+- AI Reviewed Report route is authenticated and business-context scoped.
+- Reports & Downloads shows Original and AI versions separately.
+- Completed reviews can be reopened without regeneration.
+- Super Admin / Leadership regeneration includes confirmation.
+- Saved AI report detects a changed source hash and displays a stale-review warning.
+- Documentation audience excludes Provider users from the clinic-wide AI-review topic.
+
+Migration checks
+- ai_report_reviews is created automatically with IF NOT EXISTS.
+- Unique business/report identity prevents duplicate cached review rows.
+- Business foreign key uses ON DELETE CASCADE.
+- Requester foreign key uses ON DELETE SET NULL.
+- No install.php execution is required.
+
+Deployment security
+- Patch intentionally excludes config/database.php.
+- Patch intentionally excludes config/app-key.php.
+- Patch intentionally excludes config/boulevard-worker-key.php.
+- Patch contains no uploaded business files, backups, sessions, runtime logs, or stored credentials.
+
+Live-environment note
+- A real OpenAI API call was not executed in the offline build environment because the production encrypted API key and live database must not be used during patch construction.
+- The existing configured OpenAI integration is reused on Hostinger.

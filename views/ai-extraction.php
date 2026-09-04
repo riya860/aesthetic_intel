@@ -1,0 +1,22 @@
+<?php $source=$sources[$selectedSource];$adminParams=[];?>
+<section class="page-heading"><div><span class="eyebrow">TOOLS · <?=e(strtoupper($source['name']))?></span><h1><?=e($source['name'])?> Data Upload</h1><p><?=e($source['help'])?></p></div></section>
+<div class="card form-card">
+<form method="post" action="<?=e(url('business-ai-extraction',array_merge(['source'=>$selectedSource],$adminParams)))?>" enctype="multipart/form-data" data-period-form data-ai-upload-form>
+<?=csrf_field()?>
+<input type="hidden" name="action" value="extract_and_save"><input type="hidden" name="source" value="<?=e($selectedSource)?>">
+<div class="form-grid">
+<label>Frequency<select name="frequency" data-frequency><option value="weekly" <?=$frequency==='weekly'?'selected':''?>>Weekly</option><option value="monthly" <?=$frequency==='monthly'?'selected':''?>>Monthly</option><option value="quarterly" <?=$frequency==='quarterly'?'selected':''?>>Quarterly</option><option value="yearly" <?=$frequency==='yearly'?'selected':''?>>Yearly</option><option value="custom" <?=$frequency==='custom'?'selected':''?>>Custom</option></select></label>
+<label>Period start<input type="date" name="period_start" data-period-start value="<?=e($periodStart)?>" required></label><label>Period end<input type="date" name="period_end" data-period-end value="<?=e($periodEnd)?>" required></label>
+</div>
+<div class="tool-upload-grid">
+<?php foreach($source['uploads'] as $key=>$upload):?><label class="tool-upload-card"><span class="tool-upload-icon">⇧</span><span><strong><?=e($upload['label'])?></strong><small><?=e($upload['help'])?></small><em>Choose PDF or image · uploads immediately</em><span class="upload-file-name" data-file-name>Not selected</span></span><input type="file" name="<?=e($key)?>" accept="<?=e($upload['accept'])?>" data-auto-upload></label><?php endforeach;?>
+</div>
+<div class="alert alert-info">Select one report at a time. AI reads the source, extracts the values, checks the visible reporting period against your selected dates, and reviews unusual changes before the data can enter automatic comparisons. The source file is not kept permanently on the server.</div>
+<div class="form-actions js-upload-fallback"><button class="button button-primary" type="submit">Process Selected File</button></div><noscript><div class="alert alert-warning">JavaScript is required for automatic upload progress.</div></noscript>
+</form></div>
+<?php if($latest):?>
+<?php $validationRow=$latest;$sourceType='ai';$recordId=(int)$latest['id'];include VIEW_PATH.'/partials/report-validation.php'; ?>
+<div class="card form-card" style="margin-top:20px"><div class="card-heading"><div><h2>Latest Saved Metrics</h2><p><?=e(reporting_us_date($latest['period_start']))?> – <?=e(reporting_us_date($latest['period_end']))?></p></div></div>
+<?php $latestValues=json_decode((string)$latest['extracted_json'],true)?:[];?><div class="metric-preview-grid"><?php foreach($source['fields'] as $key=>$label):?><div class="metric-preview"><small><?=e($label)?></small><strong><?=($latestValues[$key]??null)!==null&&$latestValues[$key]!==''?e((string)$latestValues[$key]):'Data not available'?></strong></div><?php endforeach;?></div><?php if(!empty($latest['notes'])):?><div class="alert alert-info" style="margin-top:16px"><?=e($latest['notes'])?></div><?php endif;?></div>
+<?php endif;?>
+<?php if($history):?><div class="card" style="margin-top:20px"><div class="card-heading"><h2><?=e($source['name'])?> Upload History</h2></div><div class="table-wrap"><table><thead><tr><th>Period</th><th>Frequency</th><th>Validation</th><th>Saved</th><th>Action</th></tr></thead><tbody><?php foreach($history as $row):?><tr><td><?=e(reporting_us_date($row['period_start']))?> – <?=e(reporting_us_date($row['period_end']))?></td><td><?=e(ucfirst($row['frequency']))?></td><td><?php $vm=report_validation_status_meta($row['validation_status']??'validated');?><span class="validation-badge validation-<?=e($vm['class'])?>"><?=e($vm['label'])?></span></td><td><?=e(reporting_us_date($row['created_at'],true))?></td><td><form method="post" onsubmit="return confirm('Delete this saved extraction?')"><?=csrf_field()?><input type="hidden" name="action" value="delete"><input type="hidden" name="source" value="<?=e($selectedSource)?>"><input type="hidden" name="id" value="<?=e($row['id'])?>"><button class="link-button danger" type="submit">Delete</button></form></td></tr><?php endforeach;?></tbody></table></div></div><?php endif;?>

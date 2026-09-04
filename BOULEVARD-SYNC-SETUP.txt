@@ -1,0 +1,18 @@
+Aesthetic Intel v1.2.0 - Boulevard Sync Setup
+
+1. Upload and extract the replacement ZIP inside public_html.
+2. Select Replace existing files.
+3. Do not run install.php.
+4. Refresh Aesthetic Intel with Ctrl + Shift + R.
+5. Open RUMA -> Tools -> Boulevard -> API Integration.
+6. Confirm the Reliability Center appears.
+7. Copy the exact Hostinger cron command shown there and schedule it every 2 minutes.
+8. Register the exact webhook URL shown there in the Boulevard API application for REPORT_EXPORT_COMPLETED.
+9. Use Boulevard's webhook ping/test and confirm the endpoint returns a successful response.
+10. Run a weekly technical sync and compare the figures with a manual Boulevard export before enabling Friday production use.
+
+Important:
+- The cron worker is what lets processing continue after the browser closes.
+- The webhook is the preferred completion signal.
+- Signed-file checks and controlled API polling remain as fallbacks.
+- Manual CSV upload remains available for any report that needs attention.

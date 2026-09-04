@@ -1,0 +1,12 @@
+Provider KPI Phase 3 critical acceptance tests
+
+1. Open Provider KPI and verify workspace navigation and readiness checklist.
+2. Export Clinic CSV and verify provider rows/KPI columns.
+3. Print Clinic Overview and one Provider Scorecard to PDF; verify clean page breaks.
+4. Copy previous-month goals for all providers in a test month.
+5. Upload a revised monthly CSV, confirm replacement warning, and import.
+6. Roll back that latest import and verify previous values return.
+7. Open Activity and confirm import/rollback/goal events are recorded.
+8. Create Provider, Leadership, and Data Uploader accounts and verify role restrictions.
+9. Verify a Provider account can open only its linked provider workspace.
+10. Verify inactive providers are excluded from clinic views and cannot remain linked to a login.

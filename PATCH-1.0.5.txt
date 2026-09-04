@@ -1,0 +1,7 @@
+Aesthetic Intel 1.0.5
+- Adds business-side AI Data Extraction for Podium, Growth99+, GA4, and CallRail.
+- Accepts PNG, JPG, WebP, and PDF inputs.
+- Extracted values must be reviewed and confirmed before saving.
+- Stores confirmed results by business and reporting period.
+- Adds extraction history and delete action.
+- Does not expose the OpenAI API key to business users.

@@ -1,0 +1,11 @@
+AESTHETIC INTEL 1.0.4 — OPENAI FOUNDATION
+
+Added:
+- Super-admin-only AI Integration page
+- Encrypted OpenAI API key storage (AES-256-GCM)
+- Automatic private encryption-key file creation in config/app-key.php
+- OpenAI Responses API connection test
+- Enable/disable switch and configurable model
+- Status logging without exposing the full API key
+
+This patch adds the AI foundation only. Podium, Growth99+, GA4, and CallRail screenshot upload/extraction screens will be added next, with a human review step before saving extracted data.

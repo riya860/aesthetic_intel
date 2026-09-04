@@ -1,0 +1,102 @@
+AESTHETIC INTEL — AI WEEKLY REPORT ENHANCED DASHBOARD V2
+Date: 2026-09-04
+
+WHAT CHANGED
+============
+
+1. app/ai-weekly-report.php
+   - Prompt version changed to ai-weekly-v2-visual-dashboard.
+   - Structured output schema now includes a visualizations array.
+   - Supported chart types: bar, line, doughnut.
+   - Chart data is limited to explicit source-supported numeric values.
+   - Strong prompt rules prevent fabricated/interpolated chart data.
+   - Sanitizer validates chart type, labels, dataset lengths and numeric values.
+   - Added ai_weekly_report_source_summary() to expose deterministic source coverage from the saved snapshot.
+
+2. views/partials/ai-weekly-dashboard.php
+   - Rebuilt as the shared V2 renderer used by both Admin Preview and Business Report.
+   - New animated executive hero.
+   - KPI metric cards with direction badges.
+   - Source-supported charts.
+   - Wins / Risks / Opportunities intelligence cards.
+   - Prioritized recommendations with expandable rationale.
+   - Reporting source coverage cards.
+   - Data-quality panel.
+
+3. assets/js/ai-weekly-report.js
+   - New page-specific JavaScript.
+   - IntersectionObserver reveal animations.
+   - Subtle pointer tilt on KPI cards.
+   - Lazy-loads Chart.js only on AI Weekly Report detail pages.
+   - Renders bar, line and doughnut charts.
+   - Handles dark/light theme changes.
+   - Respects prefers-reduced-motion.
+   - Shows a graceful fallback if Chart.js cannot load.
+
+4. assets/css/ui-v2.css
+   - Added an isolated AI Weekly Dashboard V2 style layer.
+   - Responsive desktop/tablet/mobile layout.
+   - Dark-theme-compatible surfaces.
+   - Hero gradient/orb motion.
+   - Chart cards, KPI cards and intelligence cards.
+   - Print-safe rules.
+
+5. views/admin-ai-weekly-report-preview.php
+   - Loads ai-weekly-report.js.
+
+6. views/business-ai-weekly-report.php
+   - Loads ai-weekly-report.js.
+
+7. views/admin-ai-weekly-reports.php
+   - Removed stale copy referring to pasted reports / Gemini.
+   - Copy now matches the automatic validated-source workflow.
+
+IMPORTANT BACKWARD-COMPATIBILITY NOTE
+=====================================
+
+Existing generated reports created under the old schema do not contain visualizations.
+They will still render normally. Charts only appear after a report is regenerated with the new prompt/schema.
+
+No database migration is required because visualizations are stored inside the existing generated_json column.
+The current source snapshot, source hash, version history, publish flow and audit logging remain unchanged.
+
+LOCAL TEST PLAN
+===============
+
+1. Start the local Aesthetic Intel project as normal.
+2. Sign in as Super Admin.
+3. Ensure AI Weekly Report is enabled for the test business.
+4. Go to AI Weekly Reports > Generate New Weekly Report.
+5. Select a business and a period that has validated source data.
+6. Refresh Source Data.
+7. Save / Generate the report using the existing flow.
+8. Open the private preview.
+9. Confirm:
+   - Hero animates in.
+   - KPI cards reveal progressively.
+   - Charts animate when supported data exists.
+   - Wins/Risks/Opportunities render correctly.
+   - Recommendation rationale expands/collapses.
+   - Source coverage matches the selected source period.
+   - Dark mode updates chart colors.
+   - Mobile layout stacks correctly.
+10. Publish the report.
+11. Switch to the business dashboard and open the published report.
+12. Confirm the same reusable dashboard renderer appears.
+13. Test Print / Save PDF.
+
+CHART SAFETY RULES
+==================
+
+- No fake chart data.
+- No interpolation of missing periods.
+- No line chart unless ordered historical/time data exists in the source snapshot.
+- No mixed-unit datasets in the same chart.
+- Chart labels and values must align exactly.
+- If truthful graph data is unavailable, the visualizations array is empty and the dashboard simply renders without charts.
+
+DEPENDENCY
+==========
+
+The page-specific JS lazy-loads Chart.js 4.4.7 from jsDelivr only when a report contains chart data.
+If you later want a fully self-hosted dependency, download the UMD build into assets/js/vendor/ and update CHART_JS_URL in assets/js/ai-weekly-report.js.

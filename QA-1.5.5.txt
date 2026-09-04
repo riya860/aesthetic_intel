@@ -1,0 +1,39 @@
+Aesthetic Intel v1.5.5 — QA Summary
+Report Intelligence & Safe Comparisons
+
+Static application QA
+- 79 PHP files passed `php -l`.
+- 9 JavaScript files passed `node --check`.
+- Git whitespace/error check passed for the change set.
+
+Report Intelligence unit checks
+- Friday-to-Friday 2026-07-30 → 2026-08-06 is recognized as weekly.
+- Monthly 2026-08-31 resolves to 2026-08-01 → 2026-08-31.
+- Matching Boulevard filename/data dates pass period validation.
+- A monthly Boulevard filename selected as weekly produces a high-severity period/frequency mismatch.
+- Subscription lifecycle columns `Start On` and `End On` are ignored as reporting-period signals.
+- A shorter in-range activity footprint does not create a false period failure.
+- $8,000 → $60,000 is detected as an extreme high-severity anomaly.
+- $8,000 → $9,000 is not treated as an anomaly.
+- Deterministic high-severity flags force `review_required` even if AI would otherwise validate.
+- AI-unavailable path fails closed: the report is held rather than compared.
+- AI boolean parsing treats string `false` as false (no unsafe truthy-string fallback).
+
+Comparison-safety checks
+- Previous Boulevard, GBP, and AI-source selection requires the same frequency.
+- Adjacent weekly periods may share the boundary date (previous end = current start).
+- Custom-period previous selection also requires equal day span.
+- Unified Report uses the latest record for each source/period; a newer held record does not silently fall back to an older validated record.
+- Boulevard dashboards/reports recompute comparisons at view time against a validation-safe same-frequency previous batch.
+- Held sources are excluded from Unified metrics while other validated sources can still render.
+- If every available source for a period is held, Unified Report is not generated.
+
+Data portability / security checks
+- Data Transfer preserves validation status, score, and validation detail.
+- SQL placeholder counts were checked for the modified Boulevard, GBP, and AI import statements.
+- Super Admin override is POST + CSRF protected and role restricted.
+- No source number is auto-corrected or silently replaced by the validation layer.
+- Patch contains no database.php, app-key.php, Boulevard worker key, uploaded business files, backups, sessions, or stored credentials.
+
+Live-environment note
+- A real OpenAI API call is intentionally not executed in the offline build environment. The feature reuses the OpenAI key already encrypted/configured in Aesthetic Intel and fails closed if that live call cannot complete.

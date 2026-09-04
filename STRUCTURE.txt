@@ -1,0 +1,73 @@
+AESTHETIC INTEL — PROJECT STRUCTURE
+
+/aesthetic-intel
+├── .htaccess
+├── .user.ini
+├── index.php
+├── install.php
+├── logout.php
+├── README.txt
+├── VERSION.txt
+├── THIRD-PARTY.txt
+├── FILE-MANIFEST.txt
+├── QA-RESULTS.txt
+├── STRUCTURE.txt
+├── app/
+│   ├── analytics.php
+│   ├── auth.php
+│   ├── bootstrap.php
+│   ├── helpers.php
+│   ├── parsers.php
+│   └── upload.php
+├── assets/
+│   ├── css/
+│   │   ├── app.css
+│   │   └── print.css
+│   ├── img/
+│   │   ├── favicon.svg
+│   │   ├── logo-dark.svg
+│   │   ├── logo-light.svg
+│   │   └── logo-mark.svg
+│   ├── js/
+│   │   ├── app.js
+│   │   ├── dashboard.js
+│   │   ├── pdf-export.js
+│   │   └── upload.js
+│   └── vendor/
+│       └── README.txt
+├── config/
+│   ├── .htaccess
+│   ├── app.php
+│   └── database.example.php
+├── database/
+│   ├── .htaccess
+│   ├── schema.sql
+│   └── seed.sql
+├── storage/
+│   ├── .htaccess
+│   ├── logs/.gitkeep
+│   ├── reports/.gitkeep
+│   └── uploads/.gitkeep
+└── views/
+    ├── admin-dashboard.php
+    ├── admin-uploads.php
+    ├── business-dashboard.php
+    ├── business-form.php
+    ├── businesses.php
+    ├── error.php
+    ├── footer.php
+    ├── header.php
+    ├── history.php
+    ├── home.php
+    ├── login.php
+    ├── report.php
+    ├── settings.php
+    ├── sidebar.php
+    ├── upload.php
+    ├── user-form.php
+    └── users.php
+
+Installed/runtime files created later:
+- config/database.php
+- storage/install.lock
+- Protected uploaded CSV files under storage/uploads/

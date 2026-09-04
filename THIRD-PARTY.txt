@@ -1,0 +1,6 @@
+Aesthetic Intel loads these browser libraries from pinned jsDelivr URLs:
+- Chart.js 4.5.1 — MIT License
+- html2canvas 1.4.1 — MIT License
+- jsPDF 4.2.1 — MIT License
+
+They are not bundled in this ZIP. The report remains readable if a CDN is temporarily unavailable; interactive charts/PDF export require those scripts to load.

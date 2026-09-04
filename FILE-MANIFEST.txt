@@ -1,0 +1,58 @@
+AESTHETIC INTEL 1.0.0 — EXACT FILE MANIFEST
+Expected packaged file count: 55
+
+ 1. .htaccess
+ 2. .user.ini
+ 3. FILE-MANIFEST.txt
+ 4. QA-RESULTS.txt
+ 5. README.txt
+ 6. STRUCTURE.txt
+ 7. THIRD-PARTY.txt
+ 8. VERSION.txt
+ 9. app/analytics.php
+10. app/auth.php
+11. app/bootstrap.php
+12. app/helpers.php
+13. app/parsers.php
+14. app/upload.php
+15. assets/css/app.css
+16. assets/css/print.css
+17. assets/img/favicon.svg
+18. assets/img/logo-dark.svg
+19. assets/img/logo-light.svg
+20. assets/img/logo-mark.svg
+21. assets/js/app.js
+22. assets/js/dashboard.js
+23. assets/js/pdf-export.js
+24. assets/js/upload.js
+25. assets/vendor/README.txt
+26. config/.htaccess
+27. config/app.php
+28. config/database.example.php
+29. database/.htaccess
+30. database/schema.sql
+31. database/seed.sql
+32. index.php
+33. install.php
+34. logout.php
+35. storage/.htaccess
+36. storage/logs/.gitkeep
+37. storage/reports/.gitkeep
+38. storage/uploads/.gitkeep
+39. views/admin-dashboard.php
+40. views/admin-uploads.php
+41. views/business-dashboard.php
+42. views/business-form.php
+43. views/businesses.php
+44. views/error.php
+45. views/footer.php
+46. views/header.php
+47. views/history.php
+48. views/home.php
+49. views/login.php
+50. views/report.php
+51. views/settings.php
+52. views/sidebar.php
+53. views/upload.php
+54. views/user-form.php
+55. views/users.php

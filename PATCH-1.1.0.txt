@@ -1,0 +1,26 @@
+AESTHETIC INTEL v1.1.0 — BOULEVARD API FOUNDATION
+
+Added:
+- Per-business encrypted Boulevard API credentials
+- Save & Test Connection
+- Boulevard business name and timezone verification
+- Fetch available saved Boulevard reports
+- Manual Report ID fallback
+- Dynamic mapping from Aesthetic Intel report types to Boulevard reports
+- Super Admin Boulevard Report Types manager
+- Generic CSV parser for future 12th, 13th, and later reports
+- Database foundation for future sync runs
+
+Not included yet:
+- Run Sync Now
+- Creating Boulevard report exports
+- CSV download and processing
+- Friday cron automation
+- Webhook receiver
+
+Installation:
+1. Extract inside public_html with Replace existing files.
+2. Do not run install.php.
+3. Refresh with Ctrl+Shift+R.
+4. Open a business as Super Admin.
+5. Tools → Boulevard → API Integration.

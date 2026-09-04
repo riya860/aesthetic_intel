@@ -1,0 +1,4 @@
+Aesthetic Intel v1.1.3
+Fixes Boulevard AI mapping overlap by replacing the wide table with responsive report cards.
+Adds clear approved-selection summaries, responsive search/select fields, an advanced manual-ID section, and a sticky Save Approved Mappings action.
+Preserves Boulevard credentials, fetched reports, AI suggestions, and existing mappings.

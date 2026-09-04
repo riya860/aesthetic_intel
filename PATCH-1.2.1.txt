@@ -1,0 +1,13 @@
+Aesthetic Intel v1.2.1 - Boulevard Provider Polling & Diagnostics Fix
+
+- Creates storage/logs/boulevard-sync.log with structured, PHI-free sync diagnostics.
+- Never logs API credentials, worker keys, CSV contents, or signed URL query strings.
+- Fixes a status-checking bug where a 404 CSV probe repeatedly reset the API polling timer.
+- Checks the static signed CSV URL and the Boulevard ReportExport API independently.
+- Records provider status lookup results, HTTP responses, attempts, and export references.
+- Stops silently swallowing GraphQL ReportExport lookup errors.
+- Keeps the same ReportExport for up to the 30-minute safety timeout instead of creating duplicate jobs after five minutes.
+- Reduces new export concurrency from three to two.
+- Adds Download Diagnostics to the Reliability Center and individual Sync Progress pages.
+- Adds API-check count, HTTP status, and masked export reference to the progress display.
+- Existing credentials, mappings, cron worker key, database, and active sync runs are preserved.

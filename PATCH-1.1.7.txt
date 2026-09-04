@@ -1,0 +1,11 @@
+Aesthetic Intel v1.1.7 - Boulevard Mapping Status Sync
+
+- Synchronizes the Review & Map and Safe Manual Mapping sections.
+- Hides fully mapped and 100% header-verified reports from manual verification.
+- Replaces stale AI confidence with a clear Mapped & Header Verified status.
+- Separates CSV compatibility from catalogue candidate score wording.
+- Clears old header approval when a mapping is changed.
+- Removes stale AI suggestion after a manually verified mapping is approved.
+- Shows mapped, verification-pending, and unmapped summary counts.
+- Displays normal report numbering 1, 2, 3... while preserving internal scalable sort values.
+- Keeps Boulevard credentials, fetched reports, existing mappings, and saved verification data intact.

@@ -1,0 +1,11 @@
+Aesthetic Intel v1.0.19
+
+Persistent Super Admin Business View
+- Open any active business without logging out.
+- Switch directly between businesses from a visible Super Admin bar.
+- Return to the Super Admin workspace in one click.
+- Super Admin identity is preserved for all audit logs.
+- Business context persists across Dashboard, Tools, Reports, Data Transfer, and Settings.
+- CSRF-protected enter, switch, and exit actions.
+- Active-business validation prevents access to inactive or missing businesses.
+- No database migration required.

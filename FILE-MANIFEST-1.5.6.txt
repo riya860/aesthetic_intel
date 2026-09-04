@@ -1,0 +1,23 @@
+Aesthetic Intel v1.5.6 — Patch File Manifest
+
+PATCH-1.5.6.txt
+QA-1.5.6.txt
+FILE-MANIFEST-1.5.6.txt
+VERSION.txt
+app/ai-report-review.php
+app/bootstrap.php
+app/documentation.php
+app/migrations.php
+assets/css/app.css
+assets/css/print.css
+assets/js/app.js
+config/app.php
+database/schema.sql
+index.php
+views/ai-reviewed-report.php
+views/gbp-report.php
+views/history.php
+views/partials/ai-review-actions.php
+views/report.php
+views/sidebar.php
+views/unified-report.php

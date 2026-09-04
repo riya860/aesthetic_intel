@@ -1,0 +1,23 @@
+Aesthetic Intel v1.5.9 — QA Summary
+Date: August 7, 2026
+
+Base
+----
+Built directly from the user-provided public_html (22).zip / v1.5.8 deployment base.
+
+Checks passed
+-------------
+- 85 PHP files: syntax lint clean.
+- 9 JavaScript files: node --check clean.
+- Reset button is Super Admin-only through the existing admin-backup route.
+- CSRF enforcement remains active for the reset POST.
+- Reset is offered only for today's failed automatic row at >= 3 attempts.
+- Reset SQL changes only attempt_count=0 and last_started_at=NULL.
+- No backup file deletion occurs in the reset function.
+- No password/encryption, retention, schedule, status, or error-message fields are changed by reset.
+- Reset action writes automatic_backup_retry_reset to the audit log.
+- Displayed Hostinger cron command uses /usr/bin/php.
+- Documentation entry updated.
+- Version updated to 1.5.9.
+- No migration required.
+- Patch package excludes live database.php, encryption keys, Boulevard worker key, uploads, backups, storage/runtime data, and credentials.

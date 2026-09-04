@@ -1,0 +1,17 @@
+Aesthetic Intel v1.5.0 — Provider KPI Phase 3
+
+Production-readiness release for the Provider KPI Dashboard.
+
+Highlights:
+- Unified Provider KPI workspace navigation
+- Production readiness checklist
+- Clinic CSV export and print/PDF support
+- Safer imports with mandatory replacement confirmation and rollback snapshot
+- Rollback of the latest unchanged import
+- Bulk copy previous-month goals for all active providers
+- Provider KPI activity/audit page
+- Inactive provider/login safeguards
+- Mobile and print refinements
+- Clearer Potential Revenue from Open Hours wording
+
+Install by extracting into public_html and replacing existing files. Do not run install.php. Database changes are automatic and additive.

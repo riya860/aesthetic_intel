@@ -1,0 +1,103 @@
+Aesthetic Intel v1.5.7 — Change #5
+Smart AI Search / Feature Finder
+
+CHANGE #5 OF 6
+
+Base
+----
+Built directly on the user-provided public_html (20).zip, which is Aesthetic Intel v1.5.6.
+The existing v1.5.6 Report Intelligence / Review with AI code is preserved. This release does not attempt to repair or modify the parked failed AI Review issue.
+
+Purpose
+-------
+Make Aesthetic Intel easier to navigate as the platform grows, without spending AI tokens for obvious searches and without exposing features a user is not allowed to access.
+
+New Smart Search
+----------------
+- Added Smart Search to the Help section of the sidebar for every authenticated account.
+- Added a dedicated Feature Finder page with natural-language search.
+- Example searches:
+  - Where do I upload Boulevard reports?
+  - How do I set provider goals?
+  - Where is unified report?
+  - How do I add provider?
+- Results show:
+  - feature name
+  - short description
+  - navigation path
+  - direct Open button
+- Maximum of five results are shown.
+- Role-aware Quick Actions are shown before searching.
+
+Layer 1 — local search first
+----------------------------
+- Reuses the centralized v1.5.4 Documentation registry as the feature index.
+- No second feature map was created, preventing Documentation and Search from drifting apart.
+- Local matching uses normalized phrases, keywords, task steps, titles, sections, aliases, and typo-tolerant fuzzy matching.
+- High-confidence local matches do not call OpenAI and cost zero AI tokens.
+- Common equivalent wording is normalized so repeated intents can be reused efficiently.
+
+Layer 2 — AI only when uncertain
+--------------------------------
+- AI fallback is attempted only when local search confidence is low.
+- AI receives at most five locally ranked candidates.
+- AI receives only:
+  - the user task query
+  - current role label
+  - compact enabled-workspace/module state
+  - authorized candidate IDs, names, summaries, sections, and keywords
+- AI never receives the codebase, reports, metrics, credentials, API keys, uploads, or full Documentation.
+- AI must select one of the candidate IDs already supplied by Aesthetic Intel.
+- Any invented/unauthorized ID is rejected.
+- If AI is unavailable or fails, Smart Search safely falls back to local matches.
+
+Permission safety
+-----------------
+- Unauthorized topics are filtered out BEFORE any AI request is constructed.
+- Business users cannot discover Super Admin-only feature routes through Smart Search.
+- Provider/Leadership/Data Uploader behavior follows the existing Documentation permission registry.
+- Disabled Provider KPI topics are not offered when the module is unavailable in the active business context.
+- Boulevard search follows the active manual-upload vs approved business-runner workflow.
+- Search opens destination screens only; it never executes an action.
+- Destructive workflows still require their existing confirmation/password/security steps on the destination page.
+
+Normalized intent cache
+-----------------------
+- Added smart_search_cache.
+- Repeated uncertain searches can reuse an earlier AI-selected feature instead of calling AI again.
+- Cache separation includes role/permission/module context and candidate signature.
+- The cache stores:
+  - hashed normalized intent
+  - permission/module context hash
+  - candidate signature
+  - selected documentation topic ID
+  - model/confidence metadata
+- It does NOT store raw user search wording, report data, business metrics, API keys, credentials, or AI explanation text.
+- Registry/permission changes naturally produce a different cache key.
+
+Documentation
+-------------
+- Smart Search was added to the centralized Documentation registry.
+- Documentation explains local-first search, AI fallback, permission filtering, and navigation-only safety.
+- Documentation topic records now include an explicit active status field for future feature lifecycle/search filtering.
+
+Audit
+-----
+- Search activity records mode/result count/query length without storing the raw query in audit history.
+- AI-assisted routing, AI failure, and cached AI routing are separately auditable.
+
+Installation
+------------
+1. Upload this ZIP into public_html.
+2. Extract and choose Replace existing files.
+3. Do NOT run install.php.
+4. smart_search_cache is created automatically on normal application load.
+
+Important test
+--------------
+After installation:
+1. Open Smart Search from the sidebar.
+2. Search: Where do I upload Boulevard reports?
+3. Confirm Boulevard is the best match and opens the correct Boulevard workflow for that account.
+4. Log in as a normal business user and search: delete business
+5. Confirm no Super Admin delete feature is exposed.

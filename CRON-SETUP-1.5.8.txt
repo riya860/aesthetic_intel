@@ -1,0 +1,18 @@
+Aesthetic Intel v1.5.8 — Hostinger Cron Setup
+
+1. Sign in as Super Admin and open Backup & Restore.
+2. Configure automatic backup time, timezone, retention, and encryption password.
+3. Save the settings.
+4. Copy the exact cron command displayed on that page. The command contains the real public_html server path.
+5. In Hostinger hPanel, create one cron job using that command.
+6. Recommended schedule: */5 * * * *
+7. Save the cron job.
+8. Back in Aesthetic Intel, click Run Test Backup Now.
+9. Confirm the new row says Backup Verified.
+
+Important:
+- The cron command is CLI-only and cannot run in a browser.
+- The runner checks the configured local backup time itself.
+- Repeated cron checks do not create duplicate successful daily backups.
+- If a backup fails, previous verified backups are preserved.
+- Do not run install.php for this update.

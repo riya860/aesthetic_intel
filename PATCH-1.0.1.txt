@@ -1,0 +1,10 @@
+Aesthetic Intel 1.0.1 fixes:
+- Flexible uploads: one or more Boulevard CSV reports
+- Automatic weekly/monthly/quarterly/yearly date ranges
+- Upload guidance paths for all 11 Boulevard reports
+- Dashboard button renamed to Upload Your Reports
+- Safer full-report routing
+- Stable jsPDF version and section-based aligned PDF export
+- Missing reports reduce completeness and are shown as unavailable
+
+Upload the replacement ZIP contents over the current installation. Do not run install.php again and do not replace config/database.php.

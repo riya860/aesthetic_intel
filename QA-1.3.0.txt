@@ -1,0 +1,20 @@
+Aesthetic Intel v1.3.0 QA Checklist
+
+Automated:
+- PHP syntax validation for all project PHP files
+- JavaScript syntax validation
+- ZIP integrity validation
+- Sensitive configuration exclusion from patch package
+- Route/view/link presence checks
+- Provider KPI migration and seed definition checks
+
+Hostinger live checks required:
+1. Open a business as Super Admin and enable Provider KPI Dashboard.
+2. Add two test providers.
+3. Assign leadership/data-uploader/provider roles to test users.
+4. Download the CSV template and import one test month.
+5. Confirm preview, provider recognition, and transaction import.
+6. Add monthly goals and verify Actual/Goal/Variance/% to Goal.
+7. Verify clinic overview, provider scorecard, CSV export, and print/PDF.
+8. Verify provider user sees only their linked scorecard.
+9. Verify mobile layouts.

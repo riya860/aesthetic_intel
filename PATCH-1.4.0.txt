@@ -1,0 +1,30 @@
+Aesthetic Intel v1.4.0 — Provider KPI Dashboard Phase 2
+
+Adds the management and coaching layer requested for Remedy provider performance:
+
+- Actionable Opportunity Dashboard per provider
+  - Total Revenue Opportunity Remaining
+  - Revenue Needed to Reach Goal
+  - Revenue Lost from Open Hours
+  - Additional Patients Needed
+  - Additional Productive Hours Needed
+  - Average Ticket Increase Needed
+  - Revenue Per Hour Needed to Hit Goal
+  - Required Rate Across Open Hours
+  - Remaining Appointment Capacity
+- Clinic-wide opportunity summary and priority provider list
+- Interactive provider trends for 90 days, 6 months, and 12 months
+- Rankings for Production, Revenue/Hour, Utilization, Average Ticket, Membership Sales, Retail Sales, and New Patient Conversion
+- KPI drill-down pages showing supporting drivers, source records, and 12-month history
+- Coaching workspace with monthly reviews, wins, risks, opportunities, next-review dates, and action plans
+- Action ownership, due dates, priority, status, completion, and deletion
+- Provider read-only access to their own coaching review
+- Leadership/Super Admin editing access; Data Uploaders cannot access confidential coaching notes
+- New optional KPI inputs for New Patient Leads, New Patient Conversions, and New Patient Conversion Rate
+- User-friendly responsive layouts and print-ready coaching/opportunity pages
+
+Safety and compatibility:
+- Existing Provider KPI providers, goals, imports, July/August test values, users, reports, Boulevard settings, and credentials are preserved.
+- Database migrations run automatically after the first refresh.
+- No installer is required.
+- Phase 1 CSV files remain valid; the new template only adds optional columns.

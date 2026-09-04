@@ -1,0 +1,13 @@
+Aesthetic Intel v1.2.0 - Boulevard Fail-Safe Sync Engine
+
+- Live preflight validates credentials, report IDs, header verification, and date filters.
+- Automatically repairs a uniquely identifiable stale report mapping.
+- Processes no more than three Boulevard exports concurrently.
+- Saves Boulevard export IDs, signed URLs, provider responses, checksums, and validation results.
+- Adds server-side worker endpoint for Hostinger cron.
+- Adds signed REPORT_EXPORT_COMPLETED webhook receiver with idempotency protection.
+- Uses direct signed-file probing and API polling as webhook fallbacks.
+- Uses explicit statuses, retry schedules, 30-minute timeout, and error classifications.
+- Validates every CSV and blocks header mismatches before dashboard processing.
+- Generates partial reports from verified sources and supports per-report manual CSV fallback.
+- Adds final reconciliation warnings and clear worker health information.

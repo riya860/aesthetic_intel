@@ -1,0 +1,11 @@
+Aesthetic Intel v1.5.2 QA checklist
+
+[PASS] Provider KPI configuration form is wrapped by Super Admin-only authorization helper.
+[PASS] Provider KPI settings POST requires Super Admin server-side authorization.
+[PASS] Settings POST requires explicit save_settings action.
+[PASS] Business-user navigation uses centralized module visibility rule.
+[PASS] Business dashboard Provider KPI card uses the same centralized visibility rule.
+[PASS] Disabled module remains accessible to Super Admin business view for configuration.
+[PASS] Disabled module is unavailable to business users through direct route access.
+[PASS] Existing Provider KPI leadership/provider/data_uploader roles remain unchanged.
+[PASS] No schema/database migration required.

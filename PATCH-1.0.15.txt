@@ -1,0 +1,8 @@
+Aesthetic Intel 1.0.15
+
+- Unified report now includes the complete interactive Boulevard dashboard.
+- Missing tool metrics and unavailable cards are omitted from reports and PDF output.
+- Previous-period messages are shown only when comparison data exists.
+- Boulevard source reports also hide unavailable metrics and empty comparison labels.
+- Provider tables remain sortable and adapt to the uploaded Boulevard report types.
+- No database migration is required.

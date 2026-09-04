@@ -1,0 +1,24 @@
+Aesthetic Intel v1.5.1 — Secure Business Deletion QA
+
+Completed checks
+- All application PHP files pass php -l syntax validation.
+- All JavaScript files pass node --check.
+- New delete route is Super Admin-only through require_admin().
+- Delete confirmation uses CSRF protection.
+- Current Super Admin password is verified against the authenticated user ID, active status, and super_admin role.
+- Business-user passwords cannot authorize deletion.
+- Explicit permanent-deletion acknowledgement is required.
+- RESTRICT-linked business rows (AI extractions, Provider KPI imports, GBP entries, upload batches) are deleted before the final business cascade.
+- The final business delete remains transactional; database errors roll back.
+- Business uploads, Boulevard sync files, and the business logo are staged before DB deletion and restored if the DB transaction fails.
+- Other business folders are never selected by the deletion path builder.
+- Existing Super Admin business context is cleared when the currently viewed business is deleted.
+- Incorrect password attempts and successful deletion are written to the audit log.
+- No database schema change is required.
+
+Live acceptance after upload
+1. Open Super Admin → Businesses.
+2. Confirm Delete appears for a test business but not in a business-user account.
+3. Open Delete and verify the warning/summary.
+4. Enter an incorrect Super Admin password and confirm nothing is deleted.
+5. For the final destructive test, use a disposable test business only, enter the correct current Super Admin password, confirm deletion, and verify it disappears from Businesses and its business-user login no longer works.

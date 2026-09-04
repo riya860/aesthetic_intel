@@ -1,0 +1,7 @@
+Aesthetic Intel v1.0.7
+- Server-enforced reporting periods for weekly, monthly, quarterly, yearly and custom frequencies.
+- Dates use each business reporting timezone.
+- CallRail removed as a standalone tool; CallRail Insights remains inside Growth99+.
+- Sortable report tables.
+- Business users can update their reporting timezone.
+- AI peak times are converted to the business timezone when the source explicitly shows another timezone.

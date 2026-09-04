@@ -1,0 +1,1 @@
+Fixes report section headings so white text is always used on the dark business-color background in screen and dark/light themes.

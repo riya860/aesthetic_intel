@@ -1,0 +1,137 @@
+Aesthetic Intel v1.5.8 — Change #6
+Automatic Daily Full-System Backups
+
+CHANGE #6 OF 6
+
+Base
+----
+Built directly on the user-provided public_html (21).zip, which is Aesthetic Intel v1.5.7.
+The working v1.5.7 Smart Search feature and all earlier functionality are preserved.
+The parked v1.5.6 AI Reviewed Report failure was intentionally not modified in this release.
+
+Purpose
+-------
+Add fail-safe, encrypted daily full-system backups that run through Hostinger cron without requiring a browser to remain open.
+
+Automatic Daily Backup settings
+--------------------------------
+Super Admin > Backup & Restore now includes:
+- Enable automatic daily backup
+- Backup time
+- Explicit IANA timezone
+- Retention: 7, 14, or 30 daily verified backups
+- Encryption password + confirmation
+- Password rotation support
+- Last verified backup
+- Next scheduled backup
+- One-time Hostinger cron command
+- Run Test Backup Now
+
+Protected retained storage
+--------------------------
+- Automatic/test backups are stored under protected storage/backups/automatic.
+- Existing web protections block direct HTTP access to storage.
+- The backup engine continues to exclude server-specific config/database.php, install/restore locks, backup folders, restore staging, runtime logs, and the automatic-backup lock.
+- Uploaded reports, logos, application files, users, businesses, settings, Provider KPI data, AI settings, and the full database snapshot remain part of the full-system backup.
+
+Encryption and password rotation
+--------------------------------
+- Automatic archives use the existing Sodium encrypted full-backup format.
+- The configured automatic-backup password is encrypted at rest with the existing Aesthetic Intel application master key.
+- Each retained backup history record keeps its own encrypted password reference.
+- Changing the configured password does not make older retained backups unusable.
+- Password references are cleared when a retained backup is deleted.
+
+Verification before success
+---------------------------
+A retained backup is labeled “Backup Verified” only after all of these pass:
+- outer ZIP consistency check
+- Aesthetic Intel backup-format metadata check
+- encryption metadata check
+- encrypted payload SHA-256 check
+- successful password-based decryption
+- inner ZIP extraction/path-safety validation
+- inner manifest presence/format validation
+- every site-file SHA-256 check
+- every database-table snapshot SHA-256 check
+- database schema compatibility check
+- table count is sensible and matches the manifest
+- site file count is sensible and matches the manifest
+- final retained ZIP SHA-256 remains unchanged through verification
+
+Retention safety
+----------------
+- Retention runs only AFTER a brand-new scheduled backup is fully verified.
+- A failed backup never deletes an older good backup.
+- The latest 7, 14, or 30 verified daily backups are retained according to the selected setting.
+- Retention deletion removes only the oldest verified daily backup files.
+- Test backups are not automatically counted against the daily retention set and may be deleted manually.
+
+Retry / duplicate safety
+------------------------
+- The cron runner checks the selected local timezone and time before starting.
+- Only one scheduled backup is allowed per local calendar day.
+- A file lock prevents overlapping test/automatic backup jobs.
+- Failed scheduled backups can retry after a safe delay, up to three attempts that day.
+- Repeated cron checks do not create duplicate successful daily backups.
+
+Backup History
+--------------
+Each retained backup shows:
+- created date/time in the selected backup timezone
+- Daily or Test type
+- Backup Verified / Failed safely / Deleted status
+- size
+- database table count
+- site file count
+- business count
+- user count
+- shortened SHA-256
+- validation/failure note
+
+For available verified backups, Super Admin can:
+- Download
+- Validate
+- Restore
+- Delete
+
+Restore safety
+--------------
+- Restore from Backup History first revalidates/decrypts the retained backup.
+- The existing validated restore preview is reused.
+- The user must still type RESTORE before full replacement.
+- A fresh rollback snapshot is still created immediately before restore.
+- Existing automatic rollback behavior remains unchanged if restoration fails.
+
+Hostinger cron
+--------------
+New CLI-only runner:
+cron/automatic-backup.php
+
+The Backup & Restore page displays the exact command using the current public_html path.
+Recommended cron schedule displayed in the UI:
+*/5 * * * *
+
+The cron runner cannot be executed through the browser.
+It checks whether a restore is running and safely skips automatic backup during restoration.
+
+Documentation
+-------------
+The centralized Documentation/Smart Search registry now explains:
+- automatic backup setup
+- time/timezone/retention/password
+- one-time cron setup
+- Test Backup Now
+- Backup History actions
+- Backup Verified requirement
+
+Installation
+------------
+1. Upload the v1.5.8 ZIP into public_html.
+2. Extract and choose Replace existing files.
+3. Do NOT run install.php.
+4. automatic_backup_settings and automatic_backup_history are created automatically on normal application load.
+5. Open Super Admin > Backup & Restore.
+6. Save the automatic backup settings.
+7. Add the displayed cron command once in Hostinger hPanel.
+8. Click Run Test Backup Now and confirm Backup Verified appears in Backup History.

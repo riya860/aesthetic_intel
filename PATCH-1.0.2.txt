@@ -1,0 +1,12 @@
+Aesthetic Intel v1.0.2
+
+Fixes:
+- Export PDF now opens the browser print dialog. Choose Save as PDF.
+- Improved A4 landscape report page alignment.
+- Added report deletion with confirmation and uploaded-file cleanup.
+- Added business logo upload in Settings.
+- Business logo appears automatically in performance reports.
+- Added Boulevard Weekly Sales Summary metrics, with Data not available fallbacks.
+- Automatic database migration adds businesses.logo_path.
+
+Upload and replace existing files. Do not run install.php again.

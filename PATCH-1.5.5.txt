@@ -1,0 +1,45 @@
+Aesthetic Intel v1.5.5 — Report Intelligence & Safe Comparisons
+
+CHANGE #4 OF 6
+
+Purpose
+-------
+Prevent misleading report comparisons when the wrong reporting period, frequency, or materially suspicious numbers are uploaded.
+
+What changed
+------------
+1. New Report Intelligence validation layer for Boulevard, Google Business Profile, Podium, Growth99+, and GA4.
+2. Every new report is classified as:
+   - Validated
+   - Validated with warning
+   - Review required
+   - Admin approved (only after a Super Admin explicitly overrides a held report)
+3. Review-required reports are saved for inspection but are excluded from automatic Unified Report comparisons.
+4. Unified Reports use only the latest record for a source/period and never silently fall back to an older record when the latest record is held.
+5. Previous-period comparisons must use the same reporting frequency. Custom periods must also use the same day span.
+6. Friday-to-Friday weekly periods are handled as adjacent comparable periods.
+7. Monthly reporting now follows the intended calendar-month rule: the 1st of the month through the selected period end.
+8. Boulevard CSVs are scanned across the full local file. The system checks safe report-date columns, export filename date ranges, headers, row counts, parsed metrics, and the prior comparable period.
+9. Subscription lifecycle fields such as Start On / End On are deliberately ignored as report-period signals.
+10. A compact normalized Boulevard validation context is sent to the configured OpenAI model. Raw CSV rows are not sent unnecessarily, reducing token use.
+11. Podium, Growth99+, and GA4 keep the existing image/PDF extraction call and now validate the visible source period in the same AI call, avoiding a second AI request.
+12. Deterministic anomaly checks run in addition to AI. An extreme example such as $8,000 -> $60,000 is held for review instead of being published automatically.
+13. Aesthetic Intel never changes, guesses, or silently repairs source numbers.
+14. Report pages, histories, dashboards, Unified Reports, and exports display validation state.
+15. Boulevard comparisons are recalculated at view time against the correct validation-safe, same-frequency previous period, including legacy reports.
+16. Super Admin can explicitly approve a held report after reviewing the source. The override is audited.
+17. Data Transfer preserves validation status and validation details.
+18. In-app Documentation was updated for this feature.
+
+Safety behavior
+---------------
+- If OpenAI validation is unavailable, the new report fails closed: it is saved but held from automatic comparisons.
+- A failed/held report does not replace the latest dashboard with stale fallback data; the dashboard shows a review-required notice.
+- Historical records created before v1.5.5 remain available; new comparisons are cadence-safe.
+- No API key is included in this patch. The existing encrypted Super Admin OpenAI configuration is reused.
+
+Installation
+------------
+Upload this patch to public_html and extract with Replace existing files.
+Do not run install.php.
+Database columns are added automatically by the existing migration system.

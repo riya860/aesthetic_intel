@@ -1,0 +1,16 @@
+Aesthetic Intel v1.3.0 — Provider KPI Dashboard Phase 1
+
+Adds:
+- Boulevard API Beta labeling
+- Business-level Provider KPI module enable/disable
+- Provider directory with type, department, status, and linked user
+- Provider KPI access roles: leadership, provider, data uploader, none
+- Configurable KPI definition engine covering Cameron's requested Phase 1 metrics
+- Monthly goals with copy-previous-month support
+- Guided CSV template, validation preview, duplicate protection, and transactional import
+- Clinic-wide provider overview
+- Individual provider scorecards with current month, previous month, MoM, YTD, goals, variance, and goal attainment
+- CSV scorecard export and print/PDF view
+- Mobile-responsive Provider KPI pages
+
+No existing Boulevard, GBP, AI extraction, reports, credentials, users, or database records are removed.

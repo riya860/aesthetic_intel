@@ -1,0 +1,10 @@
+Aesthetic Intel v1.1.8 — Boulevard automatic verified mapping
+
+- Removes the confusing 'Choose exact saved Boulevard report' dropdown.
+- A 100% compatible sample CSV now maps automatically when there is one safe match.
+- Automatic resolution uses direct Report ID, exact template, existing mapping, AI suggestion, and a dominant catalogue match in that order.
+- Previously verified pending mappings are reconciled automatically after this patch when the evidence is safe.
+- Genuine duplicate reports are shown as a few one-click cards instead of a 270-item dropdown.
+- Candidate percentages are removed from the user flow.
+- Existing Boulevard credentials, fetched reports, mappings, and verification records are preserved.
+- No database migration is required.

@@ -1,0 +1,13 @@
+Aesthetic Intel v1.1.4 - Boulevard Mapping Save Reliability Fix
+
+Fixes
+- Keeps the approved Boulevard Report ID in a hidden field when an AI suggestion is applied.
+- Synchronizes dropdown and manual selections before form submission.
+- Uses the approved ID as a server-side fallback if the browser dropdown value is lost.
+- Prevents misleading “0 mappings saved” success messages.
+- Stops empty submissions and explains what must be selected.
+
+Safety
+- Does not change Boulevard credentials.
+- Does not delete fetched reports or AI suggestions.
+- Does not modify existing saved mappings unless the admin submits the mapping form.

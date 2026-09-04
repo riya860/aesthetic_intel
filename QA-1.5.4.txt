@@ -1,0 +1,14 @@
+Aesthetic Intel v1.5.4 QA
+
+- Built from public_html (16).zip / v1.5.3.
+- PHP syntax validation: PASS (77 PHP files).
+- JavaScript syntax validation: PASS (9 JavaScript files).
+- Documentation route requires authentication: PASS.
+- Documentation sidebar link present in Super Admin workspace: PASS.
+- Documentation sidebar link present in business workspace: PASS.
+- Documentation registry has unique topic IDs: PASS.
+- Admin-only topics are audience-restricted: PASS.
+- Provider KPI management/import/coaching topics are role-restricted: PASS.
+- Provider KPI module enablement does not move back to business users: PASS.
+- No database migration required: PASS.
+- Patch contains no config/database.php, app-key.php, worker key, uploads, storage data, or backups: PASS.

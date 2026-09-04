@@ -1,0 +1,27 @@
+Aesthetic Intel v1.5.0 — Provider KPI Phase 3 QA
+
+Completed checks
+- 73 application PHP files passed php -l syntax validation.
+- 9 JavaScript files passed node --check.
+- 16 Provider KPI calculation/import-parser unit checks passed.
+- Transactional rollback simulation passed: prior values restored and new values removed.
+- Multi-provider CSV parsing, provider matching, unknown-column handling, invalid-number blocking, duplicate-provider blocking, and exact-file duplicate protection passed.
+- Static route checks confirmed unique routes for Provider KPI Activity and Clinic CSV export.
+- Static access checks confirmed Provider-only isolation, leadership-only Activity/Rollback controls, and Provider blocking from clinic export.
+- Automatic additive migration definitions and fresh-install schema both include rollback fields.
+- Boulevard API remains visibly marked BETA for Super Admin technical access.
+- Old user-facing “Revenue Lost from Open Hours” wording was removed and replaced with “Potential Revenue from Open Hours.”
+- Phase-only NEW badge was removed from the production sidebar.
+
+Safety behavior
+- Existing monthly KPI values cannot be replaced without explicit confirmation.
+- Every completed Phase 3 import stores a rollback snapshot.
+- Only the latest completed import can be rolled back.
+- Rollback is blocked if any affected KPI value changed after that import.
+- Rollback is limited to Leadership/Super Admin access.
+- All import and rollback writes use database transactions.
+- Provider profiles created during a rolled-back import are preserved to avoid deleting profiles that may have been used after creation.
+- Existing users, providers, goals, imports, reviews, actions, reports, credentials, and uploaded data are not deleted by the patch.
+
+Live acceptance required after upload
+The local QA environment does not contain the production Hostinger MySQL database or browser session. After installation, verify the automatic migration by opening Provider KPI once, then perform the short critical test list in PHASE-3-TESTING.txt.

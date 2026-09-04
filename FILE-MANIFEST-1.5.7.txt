@@ -1,0 +1,16 @@
+Aesthetic Intel v1.5.7 — Patch File Manifest
+
+PATCH-1.5.7.txt
+QA-1.5.7.txt
+FILE-MANIFEST-1.5.7.txt
+VERSION.txt
+app/bootstrap.php
+app/documentation.php
+app/migrations.php
+app/smart-search.php
+assets/css/app.css
+config/app.php
+database/schema.sql
+index.php
+views/sidebar.php
+views/smart-search.php

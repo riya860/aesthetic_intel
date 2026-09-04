@@ -1,0 +1,25 @@
+Aesthetic Intel v1.4.0 — Provider KPI Phase 2 QA
+
+Automated checks completed:
+- All PHP files pass php -l syntax validation.
+- All JavaScript files pass node --check.
+- New route, view, migration, and navigation references are present.
+- Provider access rules are enforced for personal scorecards, drill-downs, opportunities, rankings, and coaching.
+- Coaching POST actions require CSRF and Leadership/Super Admin permission.
+- Business ID and provider ID are included in all Phase 2 database lookups and writes.
+- Opportunity formulas handle missing values and division-by-zero safely.
+- Trend ranges are capped and monthly sequences are generated in chronological order.
+- Patch ZIP excludes database credentials, API secrets, worker keys, logs, uploads, and saved business data.
+- ZIP integrity validation passes.
+
+Live Hostinger checks required:
+1. Refresh once after installation and confirm no migration error is shown.
+2. Open the existing test provider for August 2026.
+3. Confirm Opportunity Dashboard values match the July/August test data and $50,000 production goal.
+4. Switch trend buttons: 90 Days, 6 Months, 12 Months.
+5. Open Total Production drill-down and verify July/August trend and source filename.
+6. Open Rankings and confirm the test provider appears for metrics with data.
+7. Create a draft coaching review and one action item.
+8. Update the action from Open to In Progress and Completed.
+9. Test Leadership, Data Uploader, and linked Provider access.
+10. Check desktop, tablet, mobile, and Print / Save PDF layouts.

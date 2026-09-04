@@ -1,0 +1,112 @@
+AESTHETIC INTEL v1.6.0 — QA / ACCEPTANCE CHECKLIST
+Prepared: August 24, 2026
+
+STATIC VALIDATION COMPLETED
+---------------------------
+- Full updated worktree: 86/86 PHP files passed php -l.
+- Application JavaScript: 9/9 files passed node --check.
+- Feature registry: 11 expected feature controls verified.
+- Representative route-to-feature mappings verified.
+- Safe Hostinger overlay simulation passed against the supplied v1.5.9 runtime snapshot.
+- Seven representative live runtime files (DB config, keys, install lock, logo, source upload, backup) remained byte-for-byte unchanged during the overlay test.
+- Live secret literal scan passed on the sanitized release tree.
+- Final ZIP integrity and SHA-256 are generated as part of release packaging.
+
+ACCEPTANCE TESTS FOR HOSTINGER
+-----------------------------
+1. Migration / backwards compatibility
+   - Existing businesses load normally after first refresh.
+   - Existing Provider KPI enabled/disabled state is unchanged.
+   - Existing optional modules remain enabled by default.
+
+2. Super Admin Feature Controls
+   - Open Super Admin > Businesses > Edit / Features.
+   - Confirm 11 feature switches are visible.
+   - Confirm current Provider KPI state is reflected correctly.
+   - Toggle one feature off and save.
+   - Reopen Edit / Features and confirm the state persisted.
+
+3. Disable / re-enable data preservation
+   - Disable a business feature that already has data.
+   - Confirm its navigation/dashboard access disappears.
+   - Confirm direct URL access is blocked.
+   - Re-enable the feature.
+   - Confirm the original saved data/history reappears unchanged.
+
+4. Boulevard
+   - Disable Boulevard.
+   - Confirm Boulevard dashboard card and Tools links disappear.
+   - Confirm manual upload/report URLs are blocked.
+   - Confirm Boulevard API Beta is effectively disabled too.
+   - Re-enable Boulevard and confirm access returns.
+
+5. Boulevard API Beta
+   - Keep Boulevard enabled; disable Boulevard API Beta only.
+   - Confirm manual Boulevard remains available.
+   - Confirm API Integration / Run Weekly Report routes are hidden/blocked.
+   - Confirm the cron worker does not start/resume queued API runs while the feature is disabled; re-enabling allows preserved queued work to resume.
+
+6. GBP / Podium / Growth99+ / GA4
+   - Disable each individually.
+   - Confirm only that source disappears.
+   - Confirm other enabled tools remain usable.
+
+7. Provider KPI
+   - Disable Provider KPI.
+   - Confirm Provider KPI disappears from sidebar/dashboard.
+   - Confirm direct Provider KPI URLs are blocked.
+   - Re-enable and confirm existing providers/goals/imports/coaching remain.
+
+8. Unified Reports
+   - Disable Unified Reports.
+   - Confirm Unified Reports section disappears from Reports & Downloads.
+   - Confirm direct Unified Report route is blocked.
+   - Re-enable and confirm periods return.
+
+9. Enabled-source filtering inside Unified Reports
+   - Leave Unified Reports enabled.
+   - Disable one data source that has matching-period data.
+   - Confirm the source is excluded from active Unified Report construction.
+   - Re-enable source and confirm it is eligible again.
+
+10. Review with AI
+   - Disable Review with AI.
+   - Confirm Review with AI buttons/AI report section disappear.
+   - Confirm direct AI Reviewed Report route is blocked.
+   - Re-enable and confirm stored AI review records are still present.
+   - Note: the pre-existing live AI generation issue remains a separate known
+     item and is not claimed fixed by v1.6.0.
+
+11. Data Transfer
+   - Disable Data Transfer.
+   - Confirm sidebar/history action disappears.
+   - Confirm direct export/import routes are blocked.
+
+12. Smart Search / Documentation
+   - Disable one business feature.
+   - Confirm its feature-specific Documentation topic is not shown to the
+     business user.
+   - Confirm Smart Search cannot return the disabled destination.
+   - Disable Smart Search and confirm it disappears from the business sidebar.
+   - Documentation must remain available.
+
+13. Core recovery shell
+   - With all optional features disabled, confirm Dashboard, Reports & Downloads,
+     Settings, and Documentation remain available.
+   - In Super Admin business view, confirm Manage Feature Controls is available.
+
+14. Permissions
+   - Business users cannot modify feature controls.
+   - Provider isolation remains unchanged.
+   - Data Uploader/Leadership permissions remain unchanged.
+   - Super Admin is the only role that can save business feature states.
+
+15. Audit
+   - Save a feature change.
+   - Confirm business_feature_controls_updated is present in audit_logs.
+
+KNOWN UNCHANGED ITEMS
+---------------------
+- Boulevard API remains Beta until export completion is proven live.
+- AI Reviewed Report live generation must still be reproduced/repaired before
+  being called production-stable.

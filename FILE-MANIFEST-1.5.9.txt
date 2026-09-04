@@ -1,0 +1,11 @@
+Aesthetic Intel v1.5.9 — Patch File Manifest
+
+PATCH-1.5.9.txt
+QA-1.5.9.txt
+FILE-MANIFEST-1.5.9.txt
+VERSION.txt
+app/backup.php
+app/documentation.php
+config/app.php
+index.php
+views/admin-backup.php

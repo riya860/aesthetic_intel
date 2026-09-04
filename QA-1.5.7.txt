@@ -1,0 +1,61 @@
+Aesthetic Intel v1.5.7 — QA Summary
+Change #5: Smart AI Search / Feature Finder
+
+Base verification
+- Confirmed public_html (20).zip reports Aesthetic Intel version 1.5.6.
+- v1.5.7 was built as a delta on that exact base.
+- Existing v1.5.6 AI Review code was intentionally left unchanged.
+
+Static application QA
+- 84 PHP files passed php -l.
+- 9 JavaScript files passed node --check.
+- New Smart Search route, view, registry changes, migration, schema, sidebar, version, and styles passed syntax/static checks.
+
+Local search tests
+- “Where do I upload Boulevard reports?” -> Boulevard, confident local match.
+- “How do I set provider goals?” -> Provider Goals, confident local match.
+- “Where is unified report?” -> Unified Report, confident local match.
+- “How do I add provider?” -> Providers, confident local match.
+- Equivalent wording normalizes to the same intent:
+  - “Where do I upload Boulevard reports?” == “Boulevard report upload”
+  - “How do I set provider goals?” == “Set goals for provider”
+  - “Review with AI” == “AI reviewed report”
+
+Permission / AI safety checks
+- Smart Search starts from documentation_visible_topics(), so unauthorized features are removed before ranking and before AI fallback.
+- AI fallback receives no more than five authorized candidates.
+- AI prompt allows only supplied candidate IDs and explicitly forbids executing actions.
+- AI output is server-validated against allowed candidate IDs before use.
+- Destination URLs come only from the internal Documentation registry, never from AI output.
+- Smart Search has no delete/update/settings execution route of its own.
+- POST search is CSRF protected.
+- Smart Search requires authentication.
+- AI/API failure does not block search; local results remain available.
+
+Token / privacy checks
+- High-confidence searches never call OpenAI.
+- AI fallback is only used for uncertain local matches.
+- AI payload contains compact feature metadata only, not full Documentation/codebase/report data.
+- Cache uses hashed normalized intent rather than raw search text.
+- Cache does not store AI explanation text or user query text.
+- Audit records query length/mode only, not raw query content.
+
+Cache / migration checks
+- smart_search_cache is created with IF NOT EXISTS.
+- Cache key includes normalized intent, current permission/module context, candidate signature, and prompt version.
+- Candidate/permission changes invalidate old routing naturally through a new hash.
+- Cache failure is fail-open for navigation: Smart Search continues without caching.
+- Fresh-install database/schema.sql includes smart_search_cache.
+- Existing installations receive the table through app/migrations.php.
+- No install.php execution is required.
+
+Deployment security
+- Release delta excludes config/database.php.
+- Release delta excludes config/app-key.php.
+- Release delta excludes config/boulevard-worker-key.php.
+- Release delta contains no uploaded reports, business logos, backups, sessions, runtime logs, or stored credentials.
+
+Live-environment note
+- No production OpenAI request was executed during offline package construction.
+- Clear searches were tested through Layer 1 locally.
+- Low-confidence AI fallback will reuse the existing configured OpenAI integration on Hostinger.

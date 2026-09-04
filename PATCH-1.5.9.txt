@@ -1,0 +1,50 @@
+Aesthetic Intel v1.5.9 — Automatic Backup Retry Maintenance
+Date: August 7, 2026
+
+Purpose
+-------
+This maintenance release adds a controlled Super Admin recovery action for a daily automatic backup that has reached the built-in three-attempt retry limit after a cron/server configuration problem has been corrected.
+
+Added
+-----
+1. Super Admin > Backup & Restore now shows:
+   Reset Today’s Automatic Backup Retry
+   only when today's automatic backup is failed and has reached 3 attempts.
+
+2. The reset action:
+   - clears only attempt_count and last_started_at for today's failed automatic backup row;
+   - does not delete the backup history row;
+   - does not modify backup ZIP files;
+   - does not change encryption/password data;
+   - does not change retention, schedule, restore settings, status, or stored error text;
+   - allows the next cron tick to retry immediately.
+
+3. The action is protected by:
+   - Super Admin route access;
+   - CSRF validation;
+   - browser confirmation;
+   - audit event: automatic_backup_retry_reset.
+
+4. The Hostinger cron command displayed in Backup & Restore now uses:
+   /usr/bin/php '<public_html path>/cron/automatic-backup.php'
+   instead of the generic php command.
+
+5. Documentation was updated with the retry-reset recovery workflow.
+
+Database / migration
+--------------------
+No database migration is required.
+
+Installation
+------------
+Upload this ZIP inside public_html, extract it, and replace the included files.
+Do NOT run install.php.
+
+After installation
+------------------
+1. Open Super Admin > Backup & Restore.
+2. If today has reached the retry limit, click Reset Today’s Automatic Backup Retry.
+3. Confirm the prompt.
+4. The page should report that the retry was reset and Next backup should become Due now.
+5. Wait for the next */5 cron tick (up to about 5 minutes).
+6. Check Hostinger Cron > View Output and Aesthetic Intel Backup History.

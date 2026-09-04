@@ -1,0 +1,14 @@
+Aesthetic Intel v1.0.20 - Super Admin User Password Reset
+
+Added:
+- Dedicated Reset Password action for every user, including other Super Admin users.
+- Secure browser password generator and one-click copy.
+- One-time display of the new password after reset.
+- Optional forced password change at next sign-in.
+- Immediate lockout reset and secure password hashing.
+- Audit log entry without storing or logging plaintext passwords.
+- Existing sessions are checked against password-reset state.
+- Mobile-responsive password reset screens.
+
+Installation:
+Extract this patch inside public_html and replace existing files. Do not run install.php. Database columns are added automatically.

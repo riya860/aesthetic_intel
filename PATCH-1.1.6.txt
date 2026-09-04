@@ -1,0 +1,8 @@
+Aesthetic Intel v1.1.6 - Boulevard Manual Mapping Verification
+
+- Adds Boulevard report URL parsing and template shortlisting.
+- Adds temporary sample CSV header verification. Sample files are not stored.
+- Adds header compatibility score, matched/missing headers, and candidate approval.
+- Keeps existing Boulevard connection, credentials, fetched reports, AI suggestions, and mappings.
+- Displays report numbers as 1, 2, 3... while preserving scalable internal sort order values.
+- Adds extra confirmation for Retail-only Product Sales mappings.

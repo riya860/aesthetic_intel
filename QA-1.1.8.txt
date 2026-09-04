@@ -1,0 +1,10 @@
+Aesthetic Intel v1.1.8 QA
+
+Checks completed:
+- PHP syntax checked across all project PHP files.
+- Automatic mapping resolver tested with a Sales Summary / Payments, Refunds & Totals example.
+- Safe resolution order verified: direct ID, exact template, existing mapping, AI suggestion, dominant candidate.
+- Confusing exact-report dropdown removed from Safe Manual Mapping.
+- Genuine ambiguity uses one-click candidate cards.
+- Existing data tables and database schema are unchanged.
+- Patch excludes database credentials, application encryption keys, uploads, and user data.

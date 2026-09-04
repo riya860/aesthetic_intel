@@ -1,0 +1,60 @@
+Aesthetic Intel v1.4.0 — Provider KPI Phase 2
+Live Testing Order
+
+1. Installation
+- Upload/extract the v1.4.0 ZIP in public_html with Replace existing files.
+- Do not run install.php.
+- Sign in and refresh once so the Phase 2 tables and KPI definitions are added.
+
+2. Opportunity calculations
+- Open Remedy → Provider KPI → test provider → Opportunities.
+- For the existing August test data, verify:
+  Revenue gap = $50,000 goal - $40,000 production = $10,000.
+  Open hours = 100 scheduled hours - 70 productive hours = 30 hours.
+  Revenue lost from open hours = 30 × $571.43 = approximately $17,142.90.
+  Additional patients = $10,000 / $500 = 20.
+  Additional productive hours = $10,000 / $571.43 = approximately 17.5 hours.
+  Average ticket increase needed = $10,000 / 80 patients = $125.
+  Revenue/hour needed to hit goal = $50,000 / 70 hours = approximately $714.29.
+  Estimated remaining appointments = floor(30 / (70 / 80)) = 34.
+
+3. Trends
+- Return to the provider scorecard.
+- Confirm July and August appear in the trend chart.
+- Test 90 Days, 6 Months, and 12 Months.
+- Change the trend metric and verify missing months appear as gaps, not zeros.
+
+4. Drill-down
+- Click Total Production.
+- Confirm current, previous, MoM, YTD, goal, drivers, source file, and trend.
+- Open Utilization and confirm schedule/productive/open-hour drivers.
+
+5. Rankings
+- Open Clinic Overview → Rankings.
+- Test all ranking metrics.
+- Providers without the selected KPI should be excluded instead of shown as zero.
+
+6. Coaching
+- Open the test provider → Coaching.
+- Save a draft review with wins, risks, opportunity, summary, and next review date.
+- Add an action with owner, due date, and priority.
+- Update status to In Progress, then Completed.
+- Confirm review history and open-action counts.
+
+7. Access control
+- Leadership: all scorecards, rankings, goals, imports, opportunity pages, and coaching editing.
+- Data Uploader: clinic view, scorecards, rankings, opportunities, drill-downs, and imports; no coaching access.
+- Provider: only their linked scorecard, opportunities, drill-downs, and read-only coaching.
+- No-access user: Provider KPI remains hidden.
+
+8. Remaining Phase 1 regression checks
+- Revised-file replacement.
+- Multi-provider import.
+- Create missing provider during import.
+- Invalid CSV and transaction rollback.
+- Copy goals from previous month.
+- Inactive-provider behavior.
+- CSV/PDF output.
+- Mobile responsiveness.
+- Cross-business data isolation.
+- Backup/data-transfer compatibility.

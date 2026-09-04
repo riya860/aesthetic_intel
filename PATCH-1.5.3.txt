@@ -1,0 +1,16 @@
+Aesthetic Intel v1.5.3 — Corrected Change 2: Business-level Provider KPI activation
+
+Scope
+- Provider KPI activation is controlled only from Super Admin → Businesses → Edit Business.
+- Edit Business now contains a single “Enable Provider KPI Dashboard for this business” checkbox.
+- Business users never see an enable/disable control.
+- Once enabled, Provider KPI appears automatically in every active business user’s left sidebar and business dashboard.
+- Standard business users receive read-only clinic visibility. Existing Leadership, Data Uploader, and Provider roles continue to control elevated capabilities and provider-only isolation.
+- Disabling the module from Edit Business immediately removes Provider KPI from business-user navigation and blocks direct access.
+- Super Admin can still inspect the Provider KPI workspace while viewing a business, but activation itself is managed only from Edit Business.
+
+Security
+- Only Super Admin can access Business Edit and change the business-level Provider KPI setting.
+- Business users cannot enable/disable the module through UI or direct POST requests.
+- Goals, imports, coaching edits, provider management, and provider-only isolation keep their existing role protections.
+- No database migration is required.

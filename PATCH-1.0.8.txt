@@ -1,0 +1,7 @@
+Aesthetic Intel v1.0.8
+- Forces MM-DD-YYYY display and entry format across reporting periods and major date displays.
+- Weekly remains a rolling 7-day period ending on the selected end date.
+- Monthly remains month-to-date, from the first day of the selected month through the selected end date.
+- Quarterly is now a rolling 3-month period ending on the selected end date.
+- Yearly is now a rolling 12-month period ending on the selected end date.
+- Server and browser use the same period rules.

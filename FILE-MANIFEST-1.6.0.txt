@@ -1,0 +1,77 @@
+AESTHETIC INTEL v1.6.0 — FEATURE CONTROLS
+CHANGED / ADDED FILE MANIFEST
+Prepared: August 24, 2026
+
+ADDED
+- app/features.php
+  Business-level feature registry, persisted state, dependencies, route enforcement,
+  source/report filtering helpers, and Documentation/AI Review feature mapping.
+- PATCH-1.6.0.txt
+  Release description and Hostinger update instructions.
+- QA-1.6.0.txt
+  Acceptance and regression checklist.
+- FILE-MANIFEST-1.6.0.txt
+  This changed-file manifest.
+
+UPDATED
+- VERSION.txt
+  Version advanced to 1.6.0.
+- config/app.php
+  Application version advanced to 1.6.0.
+- app/bootstrap.php
+  Loads the Feature Controls service before modules that consume it.
+- app/migrations.php
+  Adds and safely seeds business_features while preserving Provider KPI's existing settings.
+- database/schema.sql
+  Adds business_features for new installations.
+- index.php
+  Integrates feature controls with business save, route enforcement, dashboard data loading,
+  report validation, and Boulevard manual/API behavior.
+- app/unified-report.php
+  Excludes disabled source modules from Unified Report discovery/building.
+- app/boulevard-api.php
+  Prevents the background Boulevard worker from starting/resuming API runs while Boulevard API is disabled; queued state is preserved for re-enable.
+- app/documentation.php
+  Adds Feature Controls help and removes disabled feature topics from business help/search candidates.
+- app/smart-search.php
+  Respects Boulevard API and other feature visibility via the permission-filtered documentation registry.
+- app/ai-report-review.php
+  Respects Review with AI and underlying source/report feature controls.
+- app/provider-kpi.php
+  Aligns Provider KPI navigation with the business-level enable/disable state.
+- views/business-form.php
+  Adds the Super Admin Feature Controls UI.
+- views/businesses.php
+  Exposes Edit / Features terminology.
+- views/business-dashboard.php
+  Renders only enabled optional modules and a clean empty workspace state.
+- views/sidebar.php
+  Renders only enabled business modules/tools.
+- views/history.php
+  Makes Reports & Downloads feature-aware while preserving the core report library shell.
+- views/upload.php
+  Hides Boulevard API Integration access when API Beta is disabled.
+- assets/css/app.css
+  Adds responsive Feature Controls UI styles.
+- assets/js/app.js
+  Adds toggle state, dependencies, enable-all, and disable-all behavior.
+
+DATABASE
+- New table: business_features
+- Existing businesses: generic optional modules seed enabled to preserve the v1.5.9 experience.
+- Provider KPI: retains provider_kpi_settings as its source of truth; no duplicate Provider KPI setting is introduced.
+
+NO DATA-DELETION BEHAVIOR
+Disabling a feature never deletes its reports, source uploads, KPI values, goals, coaching,
+AI reviews, settings, or integration records. Re-enabling restores access to preserved data.
+
+RUNTIME FILES THAT MUST NOT BE SHIPPED IN THE HOSTINGER UPDATE ZIP
+- config/database.php
+- config/app-key.php
+- config/boulevard-worker-key.php
+- storage/install.lock
+- live uploads / reports / sync files
+- live logs
+- retained backup archives
+- restore/delete staging
+- live business logos

@@ -1,0 +1,6 @@
+Aesthetic Intel v1.0.12
+- Fixes GA4 PDF upload by using the OpenAI Files API and temporary file IDs.
+- Deletes the temporary OpenAI file immediately after extraction.
+- Forces fresh JS/CSS assets using version 1.0.12.
+- Restores automatic upload progress and AI-processing overlay.
+- Prevents duplicate actions while processing.

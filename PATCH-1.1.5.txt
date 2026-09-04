@@ -1,0 +1,8 @@
+Aesthetic Intel v1.1.5 - Boulevard AI Suggestion Approval Fix
+
+- Makes Use this suggestion a server-backed action.
+- Saves one AI suggestion immediately without relying on JavaScript.
+- Preserves all other mappings and the existing Boulevard connection.
+- Keeps client-side selection preview as progressive enhancement.
+- Adds clear errors if the suggestion is stale or missing from the fetched catalogue.
+- Prevents the normal zero-selection browser check from blocking suggestion approval.

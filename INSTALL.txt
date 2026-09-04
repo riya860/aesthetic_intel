@@ -1,0 +1,1 @@
+Upload this ZIP inside public_html, extract it, and choose Replace existing files. Then refresh with Ctrl + Shift + R.

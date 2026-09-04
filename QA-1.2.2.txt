@@ -1,0 +1,17 @@
+Aesthetic Intel v1.2.2 QA checklist
+
+Automated checks:
+- PHP syntax checked across the application.
+- JavaScript syntax checked.
+- ZIP integrity checked.
+- No database credentials, API secrets, worker keys, signed URL query strings or passwords are added to the patch.
+
+Live validation sequence:
+1. Install and refresh.
+2. Cancel the stranded full sync from its Super Admin progress page.
+3. Run Sales Summary as a single-report diagnostic with Saved report configuration.
+4. Download Diagnostics and confirm create_export_mutation_input and create_export_mutation_response entries.
+5. If needed, repeat with Detected weekly date filter.
+6. Once one diagnostic returns a valid CSV, test the full sync.
+7. Enable Business-user Run Weekly Report only after the Super Admin is satisfied with the workflow.
+8. Sign in as a business user and confirm technical integration controls are not visible.

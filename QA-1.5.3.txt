@@ -1,0 +1,13 @@
+Aesthetic Intel v1.5.3 QA checklist
+
+[PASS] Edit Business exposes Provider KPI enable/disable switch to Super Admin.
+[PASS] Business-user Provider KPI activation form is absent.
+[PASS] Provider KPI overview no longer contains an activation form.
+[PASS] Enabled business makes Provider KPI visible in sidebar for a standard business user.
+[PASS] Disabled business hides Provider KPI from standard business user navigation and direct access.
+[PASS] Standard business user has read-only clinic visibility when enabled.
+[PASS] Leadership, Data Uploader, and Provider role restrictions remain intact.
+[PASS] Provider-linked account still redirects to its own provider scorecard.
+[PASS] Provider KPI setting is written as part of Save Business.
+[PASS] Provider KPI activation changes are audited.
+[PASS] No schema/database migration required.

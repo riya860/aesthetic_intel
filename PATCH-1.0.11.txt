@@ -1,0 +1,14 @@
+Aesthetic Intel v1.0.11 - Unified Performance Report
+
+Adds:
+- Unified reporting periods in Reports & Downloads
+- One combined report for Boulevard, Google Business Profile, Podium, Growth99+, and GA4
+- Source availability indicators and missing-data handling
+- Combined executive summary and main focus areas
+- Previous-period comparisons for AI-extracted tool metrics
+- Sortable provider table
+- Copy Email Digest and browser Save as PDF
+
+Installation:
+Extract inside public_html and replace existing files.
+Do not run install.php. No database schema changes are required.

@@ -1,0 +1,12 @@
+Aesthetic Intel v1.2.2
+
+Boulevard role separation and controlled diagnostics:
+- Boulevard API Integration, credentials, mapping, reliability, diagnostics, retries and fallbacks remain Super Admin only.
+- Super Admin can approve or disable the simplified business-user Run Weekly Report feature.
+- Business users receive a one-click weekly report screen and simplified progress view only.
+- Manual Boulevard uploads redirect to the approved automated runner for business users after access is enabled.
+- Added single-report diagnostic mode with saved-configuration and detected-filter variants.
+- Added exact sanitized export mutation input/response logging.
+- Added Cancel Sync control for Super Admins.
+- Diagnostic runs do not generate or replace business dashboards.
+- Existing credentials, mappings, reports, worker key, cron setup and saved data are preserved.

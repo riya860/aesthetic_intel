@@ -1,0 +1,12 @@
+Aesthetic Intel v1.5.3 file manifest
+Corrected Change 2: Business-level Provider KPI activation
+
+4a411f4e10b1ec1c8d9e20ab4d7cc704d48dfd151d3a5fad2a13d85093308125  PATCH-1.5.3.txt
+c5b46a9065bd025feb6662b4a8ea307cf75dd2077b48c7c788edcf55c79067c6  QA-1.5.3.txt
+c03e3824001f39b9518249b8d6522422fc4de7227e12a568c0164662b03b7758  VERSION.txt
+9db029327d9334d273fc2a3e0f790795dda211626add357011537fbf69552432  app/provider-kpi.php
+e9ee6e8dcb4d8c8a393e3cf27ae8ff026993962237bac56163557ab58e757035  config/app.php
+b5fb4d8ec6276ad76acf5278f9cb92e1f50f20d708fb269d1cc541657a1ba688  index.php
+d9c57c0f1436293e0dc215ec032298cf3ad42d2d9de66d35b70260962770fa9d  views/business-form.php
+f977105ed19d11670fa76ade45a7d8abbb643f58170eb90d43344fad553c1a61  views/provider-kpi-overview.php
+cc3ced2c01469cde17a77895250ba5267665c3bb164e4519c9d7e574bf2b2768  views/user-form.php

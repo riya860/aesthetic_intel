@@ -1,0 +1,26 @@
+Aesthetic Intel v1.2.0 - QA Summary
+
+Completed static and regression checks:
+- Applied the patch over the user's latest public_html package.
+- PHP syntax check passed for all 56 PHP files.
+- JavaScript syntax check passed for all 7 JavaScript files.
+- Existing config/database.php checksum remained unchanged.
+- Existing config/app-key.php checksum remained unchanged.
+- Secret/credential scan found no packaged API keys, passwords, or user credentials.
+- All 11 real Boulevard sample CSV parsers passed:
+  Sales Summary, Daily Summary, Appointment Metrics, Staff Schedule,
+  Service Commission, Product Commission, Membership Commission,
+  Membership Sales, Product Sales, Retail Product Sales, and Subscriptions.
+- Added status compatibility for old waiting/requested/validated sync records.
+- Added transaction-safe webhook idempotency handling.
+- Added retryable signed-link refresh and trusted redirect validation.
+- ZIP integrity checked after packaging.
+
+Live verification still required on Hostinger:
+- Automatic database migrations against the live MariaDB version.
+- One real RUMA Boulevard weekly export sync.
+- Hostinger cron worker execution.
+- Boulevard REPORT_EXPORT_COMPLETED webhook registration and ping.
+- Final API totals compared against one manual Boulevard export.
+
+No software can guarantee that an external API will never fail. This release is designed to fail safely: bounded waits, explicit errors, retries, partial processing, and manual CSV fallback.

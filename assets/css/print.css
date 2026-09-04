@@ -1,0 +1,541 @@
+@page { size: A4 landscape; margin: 6mm; }
+* { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
+html, body { background:#fff !important; color:#111827 !important; width:100% !important; }
+.no-print, .sidebar, .theme-toggle, .mobile-menu { display:none !important; }
+.app-shell, .main-content { display:block !important; margin:0 !important; padding:0 !important; width:100% !important; }
+.report-canvas { max-width:none !important; width:100% !important; margin:0 !important; padding:0 !important; border-radius:0 !important; box-shadow:none !important; background:#fff !important; }
+.report-header { margin:0 0 4mm !important; min-height:22mm !important; }
+.report-section, .infographic-section { break-inside:avoid-page !important; page-break-inside:avoid !important; overflow:visible !important; }
+.infographic-section { margin:0 0 4mm !important; padding:4mm !important; }
+.infographic-section + .infographic-section { break-before:page !important; page-break-before:always !important; }
+.chart-frame { height:105mm !important; min-height:105mm !important; overflow:hidden !important; }
+.chart-frame.tall { height:112mm !important; }
+.chart-split { grid-template-columns:1fr 1fr !important; gap:5mm !important; }
+.report-kpis { grid-template-columns:repeat(4,1fr) !important; gap:3mm !important; }
+.report-kpi { min-height:24mm !important; padding:3mm !important; }
+.insight-grid { grid-template-columns:repeat(3,1fr) !important; }
+.retail-layout { align-items:start !important; }
+.retail-summary ol li { break-inside:avoid !important; }
+table { width:100% !important; font-size:9pt !important; }
+.table-wrap { overflow:visible !important; }
+.report-footer { break-before:auto !important; page-break-before:auto !important; color:#475467 !important; }
+
+
+/* Provider KPI Phase 3 print/PDF */
+.provider-print-meta{display:flex !important;justify-content:space-between;align-items:flex-end;gap:8mm;margin:0 0 5mm;padding:0 0 3mm;border-bottom:1px solid #d0d5dd}.provider-print-meta strong{font-size:15pt}.provider-print-meta span{font-size:10pt;font-weight:700}.provider-print-meta small{font-size:8pt;color:#667085}.provider-kpi-page-head,.page-head{margin-bottom:4mm!important}.provider-kpi-card-grid{grid-template-columns:repeat(3,1fr)!important;gap:3mm!important}.provider-kpi-summary-card{min-height:20mm!important;padding:3mm!important;box-shadow:none!important}.provider-kpi-summary-card strong{font-size:16pt!important}.provider-scorecard-section,.provider-opportunity-preview,.provider-clinic-opportunity,.provider-action-panel,.provider-review-form,.provider-review-readonly,.provider-source-panel{break-inside:avoid-page!important;page-break-inside:avoid!important;box-shadow:none!important}.provider-opportunity-card-grid,.provider-opportunity-full-grid{grid-template-columns:repeat(3,1fr)!important;gap:3mm!important}.provider-opportunity-card-grid article{padding:3mm!important;min-height:0!important}.provider-period-bar,.provider-workspace-nav,.provider-readiness{display:none!important}.provider-ranking-table{font-size:8pt!important}.provider-ranking-table th,.provider-ranking-table td{padding:2.3mm!important}.provider-action-item{break-inside:avoid!important;box-shadow:none!important}.provider-review-form textarea{border:0!important;padding:0!important;min-height:18mm!important;resize:none!important}.provider-review-form input,.provider-review-form select{border:0!important;padding:0!important;background:transparent!important}.provider-review-form button{display:none!important}
+
+.provider-trend-panel{display:block!important}.provider-trend-chart{height:80mm!important;break-inside:avoid!important}
+
+/* v1.5.6 AI Reviewed Report print support */
+.ai-reviewed-report .ai-review-grid{grid-template-columns:repeat(2,1fr)!important;gap:3mm!important}.ai-reviewed-report .ai-review-card{break-inside:avoid!important;page-break-inside:avoid!important;padding:3mm!important}.ai-reviewed-report .ai-integrity-banner{break-inside:avoid!important;page-break-inside:avoid!important}.ai-reviewed-report .infographic-section + .infographic-section{break-before:auto!important;page-break-before:auto!important}.ai-reviewed-report .ai-kpi-table{font-size:8pt!important}
+
+/* ============================================================
+   AI WEEKLY REPORT V2 — PRINT / SAVE PDF
+   ============================================================ */
+
+@page aiWeeklyReport {
+  size: A4 portrait;
+  margin: 8mm;
+}
+
+body.page-admin-ai-weekly-report-preview .ai-weekly-print-surface,
+body.page-business-ai-weekly-report .ai-weekly-print-surface {
+  page: aiWeeklyReport;
+}
+
+body.page-admin-ai-weekly-report-preview .main-content > *,
+body.page-business-ai-weekly-report .main-content > * {
+  display: none !important;
+}
+
+body.page-admin-ai-weekly-report-preview .main-content > .ai-weekly-print-surface,
+body.page-business-ai-weekly-report .main-content > .ai-weekly-print-surface {
+  display: block !important;
+}
+
+body.page-admin-ai-weekly-report-preview .main-content,
+body.page-business-ai-weekly-report .main-content {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.ai-weekly-print-surface {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.ai-weekly-dashboard-v2 {
+  --text: #29252d;
+  --muted: #746d78;
+  --border: #ddd8e1;
+  --surface-raised: #ffffff;
+  --surface-soft: #f7f5f8;
+  --aiw-ink: #1a171d;
+  width: 100% !important;
+  max-width: none !important;
+  gap: 4mm !important;
+  color: #252128 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-reveal {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-hero {
+  min-height: 41mm !important;
+  margin: 0 !important;
+  padding: 6mm !important;
+  gap: 5mm !important;
+  border-radius: 5mm !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+  box-shadow: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-hero h2 {
+  font-size: 23pt !important;
+  line-height: 1.02 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-kicker {
+  font-size: 7pt !important;
+  margin-bottom: 2mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-summary {
+  max-width: 125mm !important;
+  margin-top: 3mm !important;
+  font-size: 8.5pt !important;
+  line-height: 1.45 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-hero-meta {
+  margin-top: 3.5mm !important;
+  gap: 1.5mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-hero-meta span,
+.ai-weekly-dashboard-v2 .aiw2-status {
+  font-size: 6.5pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-coverage strong {
+  font-size: 20pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-coverage span {
+  font-size: 6.5pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-orb {
+  opacity: .55 !important;
+  animation: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 2.5mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-metric {
+  min-height: 27mm !important;
+  padding: 3.5mm !important;
+  border-radius: 3.5mm !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-metric-top,
+.ai-weekly-dashboard-v2 .aiw2-metric p {
+  font-size: 6.5pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-metric-value {
+  margin: 3mm 0 2mm !important;
+  font-size: 17pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-metric small {
+  font-size: 5.7pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-direction {
+  min-width: 5.5mm !important;
+  height: 5.5mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-section-head {
+  margin-bottom: 3mm !important;
+  gap: 4mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-section-head > div > span,
+.ai-weekly-dashboard-v2 .aiw2-chart-head > div > span,
+.ai-weekly-dashboard-v2 .aiw2-intelligence-card header > div > span {
+  font-size: 5.7pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-section-head h3,
+.ai-weekly-dashboard-v2 .aiw2-intelligence-card h3 {
+  font-size: 10pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-section-head > p {
+  font-size: 6.2pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-section {
+  break-before: auto !important;
+  page-break-before: auto !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 3mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-card {
+  padding: 4mm !important;
+  border-radius: 4mm !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+  box-shadow: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-card-featured {
+  grid-column: span 2 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-head {
+  margin-bottom: 2.5mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-head h4 {
+  font-size: 9pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-head p,
+.ai-weekly-dashboard-v2 .aiw2-chart-source {
+  font-size: 6pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-canvas-wrap {
+  height: 56mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-card-featured .aiw2-chart-canvas-wrap {
+  height: 68mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-print-chart-image {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-chart-canvas-wrap.has-print-image canvas {
+  display: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 2.5mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-card {
+  border-radius: 3.5mm !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-card header {
+  padding: 3mm !important;
+  gap: 2mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-icon {
+  width: 7mm !important;
+  height: 7mm !important;
+  border-radius: 2mm !important;
+  font-size: 8pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-count-badge,
+.ai-weekly-dashboard-v2 .aiw2-action-total {
+  font-size: 5.5pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-items {
+  padding: 1mm 3mm 3mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-item {
+  padding: 2.7mm 0 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-item strong {
+  font-size: 7.2pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-item p {
+  margin: 1.2mm 0 1.5mm !important;
+  font-size: 6.3pt !important;
+  line-height: 1.45 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-intelligence-item small {
+  font-size: 5.5pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-recommendations,
+.ai-weekly-dashboard-v2 .aiw2-sources {
+  padding: 4mm !important;
+  border-radius: 4mm !important;
+  box-shadow: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-recommendations {
+  break-inside: auto !important;
+  page-break-inside: auto !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-action-row {
+  grid-template-columns: 8mm minmax(0, 1fr) !important;
+  gap: 3mm !important;
+  padding: 3mm 0 !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-action-number {
+  width: 8mm !important;
+  height: 8mm !important;
+  border-radius: 2.3mm !important;
+  font-size: 6pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-action-title-row strong {
+  font-size: 7.5pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-priority {
+  font-size: 5.2pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-action-copy > p,
+.ai-weekly-dashboard-v2 .aiw2-rationale,
+.ai-weekly-dashboard-v2 .aiw2-rationale p {
+  font-size: 6.3pt !important;
+  line-height: 1.45 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-rationale summary {
+  display: none !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-source-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 2mm !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-source-card {
+  padding: 2.5mm !important;
+  border-radius: 2.7mm !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-source-card strong {
+  font-size: 6.2pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-source-card small {
+  font-size: 5.4pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-quality {
+  padding: 3mm !important;
+  border-radius: 3mm !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-quality strong {
+  font-size: 7pt !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-quality ul {
+  margin-top: 1.5mm !important;
+  font-size: 6.2pt !important;
+  line-height: 1.45 !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-print-footer {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 5mm !important;
+  margin-top: 2mm !important;
+  padding-top: 2.5mm !important;
+  border-top: 1px solid #d9d5dc !important;
+  color: #77717d !important;
+  font-size: 5.8pt !important;
+  line-height: 1.35 !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+}
+
+.ai-weekly-dashboard-v2 .aiw2-print-footer span:last-child {
+  text-align: right !important;
+}
+
+/* ============================================================
+   AI WEEKLY REPORT — DEDICATED PDF DOCUMENT
+   This route contains only the printable report. It deliberately
+   avoids the application-shell hide/show logic used by old exports.
+   ============================================================ */
+
+body.page-admin-ai-weekly-report-print .ai-weekly-print-document,
+body.page-business-ai-weekly-report-print .ai-weekly-print-document {
+  page: aiWeeklyReport;
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body.page-admin-ai-weekly-report-print .public-main,
+body.page-business-ai-weekly-report-print .public-main {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  background: #fff !important;
+}
+
+body.page-admin-ai-weekly-report-print .ai-weekly-print-toolbar,
+body.page-business-ai-weekly-report-print .ai-weekly-print-toolbar {
+  display: none !important;
+}
+
+body.page-admin-ai-weekly-report-print .ai-weekly-print-paper,
+body.page-business-ai-weekly-report-print .ai-weekly-print-paper {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+body.page-admin-ai-weekly-report-print .ai-weekly-dashboard-v2,
+body.page-business-ai-weekly-report-print .ai-weekly-dashboard-v2 {
+  display: grid !important;
+  width: 100% !important;
+  max-width: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+body.page-admin-ai-weekly-report-print .ai-weekly-dashboard-v2 .aiw2-reveal,
+body.page-business-ai-weekly-report-print .ai-weekly-dashboard-v2 .aiw2-reveal {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-chart-print-wrap,
+body.page-business-ai-weekly-report-print .aiw2-chart-print-wrap {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-print-chart-svg,
+body.page-business-ai-weekly-report-print .aiw2-print-chart-svg {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 67mm !important;
+  break-inside: avoid-page !important;
+  page-break-inside: avoid !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-print-chart-table-wrap,
+body.page-business-ai-weekly-report-print .aiw2-print-chart-table-wrap {
+  display: block !important;
+  margin-top: 2mm !important;
+  overflow: visible !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-print-chart-table,
+body.page-business-ai-weekly-report-print .aiw2-print-chart-table {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+  font-size: 5.7pt !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-print-chart-table th,
+body.page-admin-ai-weekly-report-print .aiw2-print-chart-table td,
+body.page-business-ai-weekly-report-print .aiw2-print-chart-table th,
+body.page-business-ai-weekly-report-print .aiw2-print-chart-table td {
+  padding: 1.3mm 1.5mm !important;
+  border-bottom: 1px solid #e6e1e8 !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-rationale-print,
+body.page-business-ai-weekly-report-print .aiw2-rationale-print {
+  display: block !important;
+  margin-top: 1.5mm !important;
+  padding-top: 1.5mm !important;
+  border-top: 1px dashed #ded8e1 !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-rationale-print > strong,
+body.page-business-ai-weekly-report-print .aiw2-rationale-print > strong {
+  display: block !important;
+  margin-bottom: .8mm !important;
+  font-size: 5.8pt !important;
+}
+
+/* PDF layout polish: the vector graphic is the primary chart in the saved PDF.
+   The numeric table remains visible in the browser preview but is omitted from
+   print so charts do not become excessively tall or split awkwardly. */
+body.page-admin-ai-weekly-report-print .aiw2-print-chart-table-wrap,
+body.page-business-ai-weekly-report-print .aiw2-print-chart-table-wrap {
+  display: none !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-recommendations .aiw2-section-head,
+body.page-business-ai-weekly-report-print .aiw2-recommendations .aiw2-section-head {
+  break-after: avoid-page !important;
+  page-break-after: avoid !important;
+}
+
+body.page-admin-ai-weekly-report-print .aiw2-recommendations .aiw2-action-row:first-child,
+body.page-business-ai-weekly-report-print .aiw2-recommendations .aiw2-action-row:first-child {
+  break-before: avoid-page !important;
+  page-break-before: avoid !important;
+}

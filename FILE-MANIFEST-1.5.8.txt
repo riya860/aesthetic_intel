@@ -1,0 +1,16 @@
+Aesthetic Intel v1.5.8 — Patch File Manifest
+
+CRON-SETUP-1.5.8.txt
+PATCH-1.5.8.txt
+QA-1.5.8.txt
+FILE-MANIFEST-1.5.8.txt
+VERSION.txt
+app/backup.php
+app/documentation.php
+app/migrations.php
+assets/css/app.css
+config/app.php
+cron/automatic-backup.php
+database/schema.sql
+index.php
+views/admin-backup.php

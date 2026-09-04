@@ -1,0 +1,3 @@
+Aesthetic Intel v1.0.17 - Encrypted Full Backup & Restore
+
+Adds a Super Admin Backup & Restore module with password-encrypted ZIP exports, integrity validation, exact-version/schema preflight checks, protected staging, automatic maintenance mode, and automatic rollback if restore fails. Host-specific config/database.php is preserved.

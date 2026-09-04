@@ -1,0 +1,2 @@
+Aesthetic Intel v1.1.2
+Fixes Boulevard AI Analyze button submission and adds visible processing overlay.

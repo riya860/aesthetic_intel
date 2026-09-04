@@ -1,0 +1,9 @@
+{
+    "require": {
+        "google/apiclient": "^2.19",
+        "google/analytics-data": "^0.25.0",
+        "google/analytics-admin": "^0.34.0",
+        "smalot/pdfparser": "^2.12",
+        "vlucas/phpdotenv": "^5.7"
+    }
+}

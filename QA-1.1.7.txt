@@ -1,0 +1,12 @@
+Aesthetic Intel v1.1.7 QA
+
+Passed:
+- PHP syntax check across the complete uploaded public_html project.
+- Exact-current-report verification state test: verified only at 100% and only when selected Report ID matches the active mapping.
+- Stale AI suggestion removal after manual approval.
+- Old verification approval invalidation after mapping change.
+- Fully verified report filtering from Safe Manual Mapping.
+- Normal visible numbering while keeping internal scalable sort values.
+- ZIP structure and integrity check.
+
+No database credentials, API credentials, uploaded reports, or saved mappings are included in this patch.

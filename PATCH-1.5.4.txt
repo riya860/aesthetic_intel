@@ -1,0 +1,17 @@
+Aesthetic Intel v1.5.4 — Universal In-App Documentation
+
+Change #3 of 6
+
+Added:
+- Documentation link in the left sidebar for every authenticated account.
+- One permission-aware documentation page for Super Admin, business users, leadership, data uploaders, and providers.
+- Very short task-based help: what the feature does, the exact steps, and a direct Open button.
+- Quick-start instructions adapted to Super Admin vs business workspace.
+- Provider KPI help is shown only when the module is enabled for the current business (Super Admin can still see it while configuring a business).
+- Provider KPI documentation respects role permissions: provider, leadership, data uploader, and standard viewer.
+- Boulevard documentation adapts to Super Admin manual/API Beta mode vs approved one-click business-user mode.
+- Central app/documentation.php registry designed to be reused by the future Smart Search change.
+- Documentation maintenance rule embedded in the registry and shown in the UI: every user-facing release must update this guide.
+
+No database migration is required.
+No existing business, user, report, Provider KPI, AI, Boulevard, backup, or settings data is changed.

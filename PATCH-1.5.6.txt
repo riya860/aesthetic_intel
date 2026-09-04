@@ -1,0 +1,94 @@
+Aesthetic Intel v1.5.6 — Final Change #4
+Report Intelligence + Review with AI / Reports & Downloads by AI
+
+CHANGE #4 OF 6 — FINAL PACKAGE
+
+Base
+----
+Built directly on the user-provided public_html (19).zip, which is Aesthetic Intel v1.5.5.
+All v1.5.5 Report Intelligence / Safe Comparison protections remain in place.
+
+Purpose
+-------
+Keep automatic data-safety validation separate from an optional, deeper AI business review of a completed report.
+
+Part A — Report Intelligence remains the safety gate
+----------------------------------------------------
+- Existing v1.5.5 deterministic + AI validation remains unchanged.
+- Same-frequency / comparable-period rules remain unchanged.
+- Held data stays held and cannot be silently approved by Review with AI.
+- AI review never changes, guesses, repairs, or overwrites source numbers.
+- Unified Reports continue to exclude held source data rather than publish misleading comparisons.
+
+Part B — New Review with AI workflow
+------------------------------------
+1. Added Review with AI to supported original reports:
+   - Unified Performance Report
+   - Boulevard Performance Report
+   - Google Business Profile Report
+2. The original report remains unchanged and available separately.
+3. A compact normalized representation of the visible report is sent to the existing configured OpenAI integration.
+4. The review covers every available visible section, including KPI comparisons, provider detail, daily/revenue mix, membership/MRR trend, source data, validation warnings, and existing report insights where applicable.
+5. AI Reviewed Report is stored separately and contains:
+   - Executive Summary
+   - Data Quality & Validation
+   - Key Wins
+   - Key Risks
+   - Unusual Changes & Anomalies
+   - Source-by-Source Analysis
+   - KPI-by-KPI Observations
+   - Period Comparison Commentary
+   - Business Opportunities
+   - Recommended Actions & Priorities
+   - Review Required warnings
+   - Unavailable / incomparable metrics
+   - Original-number integrity statement
+6. Reports & Downloads now clearly separates:
+   - Original Reports
+   - Reports & Downloads by AI
+7. Completed AI reviews are cached. Reopening the same saved AI review does not call OpenAI again.
+8. Super Admin / Leadership can explicitly Regenerate AI Review with confirmation. Regeneration replaces only the stored AI analysis, not the original source report.
+9. A source hash detects when an original report or its validation context changed after the saved AI review. The saved review is marked stale on open until regenerated.
+10. AI review requests show an in-app processing overlay to prevent accidental duplicate submissions.
+
+Permissions / security
+----------------------
+- Users can only review/open reports inside their active business context.
+- Provider-role users are blocked from clinic-wide AI Reviewed Reports so the AI layer cannot broaden provider-only access.
+- Review routes are authenticated and POST generation is CSRF protected.
+- Regeneration is restricted to Super Admin / Leadership.
+- OpenAI/API failures show a safe user-facing message; technical details remain in logs/audit history.
+- No Report Intelligence approval action is callable from Review with AI.
+
+Persistence / audit
+-------------------
+- New ai_report_reviews table stores normalized source snapshot, source hash, AI review JSON, status, model, prompt version, requester, timestamps, and failure details.
+- Request, regeneration, completion, and failure events are audited.
+- Business deletion cascades AI review records through the business foreign key.
+- Migration is automatic through the existing migration system.
+
+Token safety
+------------
+- Does not send the codebase, credentials, uploads, or irrelevant raw history.
+- Does not send unused Boulevard internal arrays.
+- Sends normalized report data representing the actual visible report sections plus essential comparable/trend context.
+- One AI request is used per newly requested/regenerated review.
+- Cached completed reviews reopen without another AI request.
+
+Documentation
+-------------
+- Reports & Downloads documentation updated.
+- Added Review with AI documentation.
+- Report Intelligence documentation now explicitly explains that automatic safety validation and optional business analysis are separate features.
+- Provider-role documentation does not expose the clinic-wide AI review workflow.
+
+Installation
+------------
+1. Upload this ZIP into public_html.
+2. Extract it and choose Replace existing files.
+3. Do NOT run install.php.
+4. The new ai_report_reviews table is created automatically on the first normal application load.
+
+Important live test
+-------------------
+After installation, open one validated report and click Review with AI. Confirm the AI Reviewed Report opens, then return to Reports & Downloads and reopen the saved AI version. The original report must remain unchanged.

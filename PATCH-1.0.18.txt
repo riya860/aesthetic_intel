@@ -1,0 +1,9 @@
+Aesthetic Intel v1.0.18 – Premium Responsive UI
+
+- New light-first visual system inspired by modern clinical SaaS dashboards.
+- Redesigned desktop sidebar with local SVG icons and grouped navigation.
+- Added mobile app bar, slide-out navigation, backdrop, and touch-friendly controls.
+- Refreshed cards, forms, tables, uploads, reports, login, and public homepage.
+- Added complete tool cards to the business dashboard.
+- Improved light and dark mode consistency.
+- No database schema or application workflow changes.

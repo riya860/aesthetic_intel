@@ -1,0 +1,8 @@
+Aesthetic Intel v1.0.13 – GA4 PDF reliability and diagnostics
+
+- Sends PDFs directly to the Responses API as a correctly formatted base64 data URL with filename.
+- Removes the extra Files API upload/delete round trip.
+- Raises request and PHP processing limits to 5 minutes.
+- Adds fatal-error JSON handling for automatic uploads.
+- Logs AI extraction failures to storage/logs/ai-extraction.log.
+- Shows the actual server/API error instead of a generic browser alert.

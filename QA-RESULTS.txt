@@ -1,0 +1,31 @@
+AESTHETIC INTEL 1.0.0 — BUILD QA
+Build date: 2026-07-30
+
+PASSED
+- PHP syntax check completed across every packaged PHP file.
+- JavaScript syntax check completed for all four application scripts.
+- Installer route tested: uninstalled application redirects to /install.php.
+- Installer page returned HTTP 200 in the local PHP server test.
+- All 11 real Boulevard sample CSV formats parsed successfully:
+  1. Sales Summary — 26 detail rows
+  2. Daily Summary — 8 reporting days
+  3. Appointment Metrics — 12 provider/resource rows
+  4. Staff Schedule — 471 schedule rows
+  5. Service Commission — 348 rows
+  6. Product Commission — 271 rows
+  7. Membership Commission — 2 rows
+  8. Membership Sales — 5 plans
+  9. Product Sales — 127 products
+  10. Retail Product Sales — 78 products
+  11. Subscriptions — 291 records
+- Test dashboard generated 30 KPIs, 12 provider summaries, charts, and rule-based insights.
+- Report view rendered successfully with test dashboard data.
+- Protected folders include direct-access blocking rules.
+
+LIVE CHECK STILL REQUIRED
+- Hostinger MariaDB credentials and table installation.
+- Hostinger PHP limits and directory permissions.
+- Final browser review of charts and PDF output on the live domain.
+- Actual PDF size varies with dashboard length; compression targets approximately 3 MB when practical.
+
+External browser dependencies use pinned jsDelivr CDN versions. See THIRD-PARTY.txt.

@@ -1,0 +1,9 @@
+Aesthetic Intel 1.0.16 - Portable Business Data Transfer
+
+Added:
+- One-click export of all saved Boulevard, GBP, Podium, Growth99+, and GA4 reporting data to one portable CSV.
+- Transactional import into the current business with checksum validation.
+- Replace-matching or skip-existing conflict handling.
+- Restores Boulevard report availability without requiring original raw CSV files.
+- Optional source timezone and report-color transfer.
+- No users, passwords, API keys, sessions, raw screenshots, raw PDFs, raw CSV uploads, or logos are exported.

@@ -1,0 +1,38 @@
+# ============================================================
+# Aesthetic Intel - Git Ignore
+# ============================================================
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Production configuration / encryption secrets
+config/database.php
+config/app-key.php
+config/boulevard-worker-key.php
+
+# Runtime files
+storage/logs/*
+storage/backups/*
+storage/uploads/*
+storage/reports/*
+
+# Keep directory placeholders if used
+!storage/logs/.gitkeep
+!storage/backups/.gitkeep
+!storage/uploads/.gitkeep
+!storage/reports/.gitkeep
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+/app/private/boulevard-secrets.php

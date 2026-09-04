@@ -1,0 +1,10 @@
+FILE-MANIFEST-1.5.2.txt
+PATCH-1.5.2.txt
+QA-1.5.2.txt
+VERSION.txt
+app/provider-kpi.php
+config/app.php
+index.php
+views/business-dashboard.php
+views/provider-kpi-overview.php
+views/sidebar.php

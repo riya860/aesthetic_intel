@@ -1,0 +1,92 @@
+Aesthetic Intel v1.5.8 — QA Summary
+Change #6: Automatic Daily Full-System Backups
+
+Base verification
+- Confirmed public_html (21).zip reports Aesthetic Intel version 1.5.7.
+- v1.5.8 was built as a delta on that exact base.
+- Existing Smart Search code is preserved.
+- The parked AI Reviewed Report failure was intentionally left unchanged.
+
+Static application QA
+- 85 PHP files passed php -l.
+- 9 JavaScript files passed node --check.
+- New backup engine functions, admin route, admin view, migration, fresh-install schema, CLI cron runner, documentation, version, and styles passed syntax/static checks.
+
+Automatic backup safety checks
+- Automatic retained backups use protected storage/backups/automatic.
+- storage/backups remains excluded from the backup payload, preventing recursive backup-of-backup growth.
+- storage/automatic-backup.lock is excluded from snapshots.
+- Cleanup logic explicitly skips retained automatic backup storage.
+- Automatic/test jobs use an exclusive file lock to prevent overlapping backups.
+- Cron is CLI-only.
+- Cron checks restore.lock before bootstrapping and skips while a restore is running.
+
+Encryption / password checks
+- Automatic backup password requires at least 10 characters.
+- Confirmation is required when setting/changing the password.
+- Password is encrypted at rest with Aesthetic Intel’s existing master-key encryption helper.
+- Per-backup encrypted password reference is stored with retained history so password rotation does not break older backups.
+- Deleted/retention-removed history records clear their encrypted password reference.
+- Release package contains no real password or encrypted live password value.
+
+Verification checks
+- Final retained backup is not marked verified merely because ZIP creation succeeded.
+- ZipArchive CHECKCONS is required.
+- Outer backup metadata/format is validated.
+- Encrypted payload SHA-256 is checked during decryption.
+- Inner ZIP paths are validated against traversal/unsafe names.
+- Every site file is verified against manifest SHA-256.
+- Every database table data snapshot is verified against manifest SHA-256.
+- Database table structures are compared with the current installation.
+- Table count and site-file count must both be nonzero and match the manifest.
+- Final retained ZIP SHA-256 is compared before the file is moved into verified retained storage.
+- Only then is “Backup Verified” recorded.
+
+Retention checks
+- Retention is called only after successful verification/history recording.
+- Failure path deletes only the new partial/new archive and never calls retention.
+- Failed backup keeps existing verified backups untouched.
+- Retention keeps the newest configured count (7/14/30) of verified daily backups.
+- Manual test backups are not removed by daily retention.
+- Failed or deleted rows do not count as verified retained daily backups.
+
+Scheduling / retry checks
+- Backup time validated as HH:MM.
+- Timezone validated using DateTimeZone/IANA timezone parsing.
+- Scheduled date is based on the selected timezone.
+- Successful/deleted scheduled history blocks duplicate backups for that local date.
+- Failed scheduled runs wait before retrying and stop after three attempts that day.
+- Cron can run frequently while the application itself controls when a backup is due.
+
+Backup History / restore checks
+- Super Admin-only route remains protected by require_admin().
+- Retained Download is read-only and Super Admin-only.
+- Validate re-runs full archive/decryption/manifest/schema checks.
+- Restore stages/decrypts the retained backup and then reuses the existing restore preview.
+- RESTORE confirmation remains required.
+- Existing rollback snapshot and automatic rollback logic were not removed.
+- Manual deletion requires an explicit confirmation action.
+
+Migration checks
+- automatic_backup_settings uses CREATE TABLE IF NOT EXISTS.
+- automatic_backup_history uses CREATE TABLE IF NOT EXISTS.
+- Default settings row uses INSERT IGNORE.
+- Fresh-install database/schema.sql includes both new tables.
+- Existing installations receive both tables through app/migrations.php.
+- No install.php execution is required.
+
+Documentation / Smart Search checks
+- Existing centralized Backup & Restore documentation was updated instead of creating a duplicate help registry.
+- Automatic backup, daily backup, cron, retention, and backup history keywords are indexed for Smart Search.
+
+Deployment security
+- Release delta excludes config/database.php.
+- Release delta excludes config/app-key.php.
+- Release delta excludes config/boulevard-worker-key.php.
+- Release delta excludes storage/, uploads, backups, sessions, logs, and live runtime data.
+- No stored credentials from public_html (21).zip are included in the release delta.
+
+Live-environment note
+- A real full backup cannot be executed against the user’s Hostinger database from the offline build environment without touching production data.
+- The intended first live test is Run Test Backup Now after installation.
+- The test is designed to create, encrypt, fully verify, store, and list one retained test backup without affecting the daily schedule.

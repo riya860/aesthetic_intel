@@ -1,0 +1,13 @@
+Aesthetic Intel v1.5.4 file manifest
+Change 3 of 6: Universal permission-aware in-app documentation
+
+c8749425853a4a1ff4ac22ae169c8ccc59b87a7488a2559106475e8acb354f40  PATCH-1.5.4.txt
+04b7fa808ed698e372ea64e8c6ebe0c17ef8e1b199b81a01ef217d2fa0ac5a17  QA-1.5.4.txt
+879a67a197446479e783c8e22a58681fed324f09eac1ce808f6a5a4c5e1894ad  VERSION.txt
+c6f732efdba1a59b69ac62b4f9a91a362231130c150452708c6efa4067321fc6  app/bootstrap.php
+f7f24e2ebabd57abf7680dffa1dd516da763c267138f1b0cb4701ab3eb9be48e  app/documentation.php
+3ad56dcde31960255ce974ee1bbdaee7c8461edd23efcf91791bca16ba840b83  assets/css/app.css
+76be39a9e211ce6d85a594f2a7ea09472903267a9ca8a3e20275ffeab04ccca9  config/app.php
+76e48f87dc235bd2e67253da01578e842fcadf018f55f46b1fc45ac55e8cd450  index.php
+b0e50eade5b4af27413389654f15416a1f6a7d4054b14b698f9a53b0a35e6ef3  views/documentation.php
+dc1f2ee76788e3b10053e01be559964ace4a4fe41ef41c33908bae4b0438192b  views/sidebar.php

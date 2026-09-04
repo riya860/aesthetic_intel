@@ -1,0 +1,18 @@
+Aesthetic Intel v1.5.1 — Change 1 of 6: Secure Business Deletion
+
+Adds a Super Admin-only permanent business deletion workflow.
+
+Highlights:
+- Delete Business action added to the Businesses list and Edit Business page.
+- Dedicated destructive-action confirmation screen.
+- Requires the currently signed-in Super Admin account password.
+- Requires an explicit permanent-deletion acknowledgement checkbox.
+- Shows a pre-delete summary of affected business users, reports, providers, KPI values, goals, reviews, and actions.
+- Removes the selected business, its business users, reports, uploads, GBP/AI data, Provider KPI data, integrations, settings, and logo.
+- Other businesses and platform Super Admin accounts are not affected.
+- Business-owned uploaded files are staged before the database transaction; if the database delete fails, staged files are restored.
+- Database deletion runs in a transaction and explicitly handles user-linked RESTRICT records before the final business cascade.
+- Deletion attempts with an incorrect Super Admin password are blocked and audited.
+- Successful deletion is audited without keeping a broken foreign-key reference to the deleted business.
+
+Install by extracting this patch ZIP into public_html and replacing existing files. Do not run install.php. No database migration is required for this change.

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Aesthetic Intel">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#12336b"/><stop offset="1" stop-color="#0f766e"/></linearGradient></defs>
+  <path fill="url(#g)" d="M32 3 56 15v20c0 13.7-9.6 22.4-24 27C17.6 57.4 8 48.7 8 35V15L32 3Z"/>
+  <path fill="none" stroke="#fff" stroke-width="3" d="M32 10 49 18v16c0 9.2-5.9 15.7-17 20-11.1-4.3-17-10.8-17-20V18l17-8Z"/>
+  <path fill="#fff" d="M20 42 29.2 19h5.6L44 42h-6.1l-1.7-4.8h-8.8L25.7 42H20Zm9.1-9.7h5.4l-2.7-7.8-2.7 7.8Z"/>
+</svg>

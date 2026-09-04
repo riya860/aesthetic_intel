@@ -1,0 +1,8 @@
+Aesthetic Intel 1.0.14
+
+- Fixed AI upload routing by posting to an explicit index.php endpoint.
+- Added clean JSON Accept header and reliable overlay error recovery.
+- Kept GA4 PDF input in the official Responses API input_file Base64 format with high detail.
+- Added optional OpenAI Admin API key storage.
+- Added organization month-to-date costs, requests, input/output tokens, hard spend limit, and calculated remaining-to-limit.
+- Clarified that standard OpenAI APIs do not expose prepaid credit balance.

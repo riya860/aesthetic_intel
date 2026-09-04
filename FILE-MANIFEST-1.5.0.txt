@@ -1,0 +1,28 @@
+Aesthetic Intel v1.5.0 patch manifest
+
+VERSION.txt	6 bytes
+PATCH-1.5.0.txt	714 bytes
+QA-1.5.0.txt	2070 bytes
+PHASE-3-TESTING.txt	808 bytes
+index.php	83657 bytes
+config/app.php	345 bytes
+app/provider-kpi.php	64186 bytes
+app/migrations.php	41044 bytes
+database/schema.sql	26382 bytes
+views/sidebar.php	9536 bytes
+views/provider-kpi-nav.php	1927 bytes
+views/provider-kpi-activity.php	1209 bytes
+views/provider-kpi-overview.php	11015 bytes
+views/provider-kpi-providers.php	2357 bytes
+views/provider-kpi-provider-form.php	2015 bytes
+views/provider-kpi-goals.php	3020 bytes
+views/provider-kpi-import.php	4099 bytes
+views/provider-kpi-import-preview.php	4326 bytes
+views/provider-kpi-provider.php	9522 bytes
+views/provider-kpi-opportunities.php	6166 bytes
+views/provider-kpi-rankings.php	3810 bytes
+views/provider-kpi-drilldown.php	5773 bytes
+views/provider-kpi-coaching.php	10306 bytes
+assets/css/app.css	104486 bytes
+assets/css/print.css	3665 bytes
+FILE-MANIFEST-1.5.0.txt	944 bytes

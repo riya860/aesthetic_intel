@@ -1,0 +1,8 @@
+Aesthetic Intel v1.0.9 - AI Upload Stability Fix
+
+- Uses the actual flat project structure: app/ and views/ directly under public_html.
+- Reconnects to MySQL after long OpenAI screenshot processing.
+- Podium accepts Inbox only, Calls only, or both.
+- Growth99+ accepts any available screenshot(s); at least one is enough.
+- PNG, JPG, JPEG, and WebP screenshots are supported. GA4 also supports PDF.
+- Removes standalone CallRail from Tools; CallRail Insights remains under Growth99+.
