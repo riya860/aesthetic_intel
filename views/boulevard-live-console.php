@@ -141,6 +141,24 @@ $warnings =
         : [];
 
 
+$pagination =
+    is_array(
+        $testResult['pagination']
+        ?? null
+    )
+        ? $testResult['pagination']
+        : [];
+
+
+$fullFetch =
+    is_array(
+        $testResult['full_fetch']
+        ?? null
+    )
+        ? $testResult['full_fetch']
+        : [];
+
+
 /*
 |--------------------------------------------------------------------------
 | DATE VALUES
@@ -299,6 +317,141 @@ $statusLabel =
                 $state
             )
         );
+    };
+
+
+$paginationMeta =
+    static function (
+        string $key
+    ) use (
+        $pagination
+    ): array {
+
+        $meta =
+            is_array(
+                $pagination[$key]
+                ?? null
+            )
+                ? $pagination[$key]
+                : [];
+
+        return [
+            'page' => max(1, (int)($meta['page'] ?? 1)),
+            'per_page' => max(1, (int)($meta['per_page'] ?? 100)),
+            'total' => max(0, (int)($meta['total'] ?? 0)),
+            'pages' => max(1, (int)($meta['pages'] ?? 1)),
+            'from' => max(0, (int)($meta['from'] ?? 0)),
+            'to' => max(0, (int)($meta['to'] ?? 0)),
+        ];
+    };
+
+
+$pageHref =
+    static function (
+        string $targetKey,
+        int $targetPage
+    ) use (
+        $paginationMeta
+    ): string {
+
+        $params = [];
+
+        foreach (
+            [
+                'appointments',
+                'orders',
+                'staff',
+                'services',
+            ]
+            as $key
+        ) {
+
+            $meta =
+                $paginationMeta(
+                    $key
+                );
+
+            $param =
+                $key
+                . '_page';
+
+            $params[
+                $param
+            ] =
+                $key === $targetKey
+                    ? max(1, $targetPage)
+                    : $meta['page'];
+        }
+
+        return
+            url(
+                'boulevard-live-console'
+            )
+            . '&'
+            . http_build_query(
+                $params
+            );
+    };
+
+
+$renderPager =
+    static function (
+        string $key
+    ) use (
+        $paginationMeta,
+        $pageHref
+    ): void {
+
+        $meta =
+            $paginationMeta(
+                $key
+            );
+
+        if (
+            $meta['total'] < 1
+        ) {
+            return;
+        }
+
+        ?>
+        <div class="bl-live-pager">
+            <div class="bl-live-pager-copy">
+                Showing
+                <strong><?= e(number_format($meta['from'])) ?></strong>
+                –
+                <strong><?= e(number_format($meta['to'])) ?></strong>
+                of
+                <strong><?= e(number_format($meta['total'])) ?></strong>
+                complete records
+                · Page
+                <?= e(number_format($meta['page'])) ?>
+                of
+                <?= e(number_format($meta['pages'])) ?>
+            </div>
+
+            <?php if ($meta['pages'] > 1): ?>
+                <div class="bl-live-pager-actions">
+                    <?php if ($meta['page'] > 1): ?>
+                        <a
+                            class="btn btn-secondary"
+                            href="<?= e($pageHref($key, $meta['page'] - 1)) ?>"
+                        >
+                            Previous
+                        </a>
+                    <?php endif; ?>
+
+                    <?php if ($meta['page'] < $meta['pages']): ?>
+                        <a
+                            class="btn btn-secondary"
+                            href="<?= e($pageHref($key, $meta['page'] + 1)) ?>"
+                        >
+                            Next
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
     };
 
 
@@ -732,6 +885,55 @@ foreach (
 
 
 /*
+ * Complete-result pagination
+ */
+
+.bl-live-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-top:
+        1px solid
+        var(
+            --ai-line,
+            var(--border, #ece8e4)
+        );
+}
+
+.bl-live-pager-copy {
+    color: var(--muted, #6d6870);
+    font-size: .82rem;
+}
+
+.bl-live-pager-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bl-live-pager .btn {
+    min-height: 34px;
+    padding: 7px 12px;
+    font-size: .78rem;
+}
+
+.bl-live-complete-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 8px;
+    color: var(--muted, #6d6870);
+    font-size: .82rem;
+}
+
+.bl-live-complete-note strong {
+    color: var(--text, #171717);
+}
+
+
+/*
  * Status chips
  */
 
@@ -922,6 +1124,16 @@ foreach (
                 <span class="status-pill status-success">
                     Connected
                 </span>
+
+                <?php if (is_array($testResult['priority_intelligence'] ?? null)): ?>
+                    <a
+                        class="btn btn-primary"
+                        style="margin-left:10px;"
+                        href="<?= e(url('boulevard-ruma-intelligence')) ?>"
+                    >
+                        Priority Intelligence
+                    </a>
+                <?php endif; ?>
 
             <?php elseif ($failed): ?>
 
@@ -1610,6 +1822,22 @@ foreach (
                 </div>
 
 
+                <div class="bl-live-context-item">
+
+                    <span>
+                        API pagination
+                    </span>
+
+                    <strong>
+                        <?= !empty($fullFetch['complete'])
+                            ? 'Complete · all cursor pages fetched'
+                            : 'Legacy cached result'
+                        ?>
+                    </strong>
+
+                </div>
+
+
             </div>
 
 
@@ -1937,17 +2165,17 @@ foreach (
 
                 </div>
 
+                <?php $appointmentMeta = $paginationMeta('appointments'); ?>
                 <span class="status-pill">
 
                     <?= e(
                         number_format(
-                            count(
-                                $appointments
-                            )
+                            $appointmentMeta['total']
+                                ?: count($appointments)
                         )
                     ) ?>
 
-                    shown
+                    total
 
                 </span>
 
@@ -2259,7 +2487,9 @@ foreach (
                                         ) ?>
                                         min
 
-                                    <?php else: ?>
+                                    <?php $renderPager('appointments'); ?>
+
+            <?php else: ?>
 
                                         —
 
@@ -2336,17 +2566,17 @@ foreach (
 
                 </div>
 
+                <?php $orderMeta = $paginationMeta('orders'); ?>
                 <span class="status-pill">
 
                     <?= e(
                         number_format(
-                            count(
-                                $orders
-                            )
+                            $orderMeta['total']
+                                ?: count($orders)
                         )
                     ) ?>
 
-                    shown
+                    total
 
                 </span>
 
@@ -2590,6 +2820,8 @@ foreach (
 
                 </div>
 
+            <?php $renderPager('orders'); ?>
+
             <?php else: ?>
 
                 <div class="bl-live-empty">
@@ -2637,13 +2869,13 @@ foreach (
 
                 </div>
 
+                <?php $staffMeta = $paginationMeta('staff'); ?>
                 <span class="status-pill">
 
                     <?= e(
                         number_format(
-                            count(
-                                $staff
-                            )
+                            $staffMeta['total']
+                                ?: count($staff)
                         )
                     ) ?>
 
@@ -2835,7 +3067,9 @@ foreach (
                                             Active
                                         </span>
 
-                                    <?php else: ?>
+                                    <?php $renderPager('staff'); ?>
+
+            <?php else: ?>
 
                                         <span class="bl-live-chip bl-live-chip-neutral">
                                             Inactive
@@ -2902,13 +3136,13 @@ foreach (
 
                 </div>
 
+                <?php $serviceMeta = $paginationMeta('services'); ?>
                 <span class="status-pill">
 
                     <?= e(
                         number_format(
-                            count(
-                                $services
-                            )
+                            $serviceMeta['total']
+                                ?: count($services)
                         )
                     ) ?>
 
@@ -3023,7 +3257,9 @@ foreach (
                                             Active
                                         </span>
 
-                                    <?php else: ?>
+                                    <?php $renderPager('services'); ?>
+
+            <?php else: ?>
 
                                         <span class="bl-live-chip bl-live-chip-neutral">
                                             Inactive

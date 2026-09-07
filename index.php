@@ -1821,6 +1821,109 @@ case 'boulevard-live-console':
 
     /*
      * ------------------------------------------------------------
+     * HYDRATE COMPLETE FETCH PAGES
+     * ------------------------------------------------------------
+     *
+     * Boulevard's GraphQL `first: 100` is only the page size.
+     * BoulevardService follows `pageInfo.endCursor` until
+     * `hasNextPage` is false, so the fetch itself is complete.
+     *
+     * The complete privacy-safe result is stored outside PHP's
+     * session and only the requested UI page is loaded here.
+     * This prevents a 100-row display limit from being mistaken
+     * for an API-fetch limit.
+     */
+
+    if (
+        is_array($testResult)
+        &&
+        !empty($testResult['success'])
+        &&
+        !empty($testResult['full_result_key'])
+    ) {
+        try {
+            require_once __DIR__
+                . '/app/Services/Boulevard/BoulevardLiveResultStore.php';
+
+            $fullResult =
+                BoulevardLiveResultStore::load(
+                    (string)$testResult['full_result_key']
+                );
+
+            if (is_array($fullResult)) {
+                $pageSize = 100;
+
+                $appointmentPage =
+                    BoulevardLiveResultStore::page(
+                        is_array($fullResult['appointments'] ?? null)
+                            ? $fullResult['appointments']
+                            : [],
+                        (int)($_GET['appointments_page'] ?? 1),
+                        $pageSize
+                    );
+
+                $orderPage =
+                    BoulevardLiveResultStore::page(
+                        is_array($fullResult['orders'] ?? null)
+                            ? $fullResult['orders']
+                            : [],
+                        (int)($_GET['orders_page'] ?? 1),
+                        $pageSize
+                    );
+
+                $staffPage =
+                    BoulevardLiveResultStore::page(
+                        is_array($fullResult['staff'] ?? null)
+                            ? $fullResult['staff']
+                            : [],
+                        (int)($_GET['staff_page'] ?? 1),
+                        $pageSize
+                    );
+
+                $servicePage =
+                    BoulevardLiveResultStore::page(
+                        is_array($fullResult['services'] ?? null)
+                            ? $fullResult['services']
+                            : [],
+                        (int)($_GET['services_page'] ?? 1),
+                        $pageSize
+                    );
+
+                $testResult['appointments'] =
+                    $appointmentPage['rows'];
+
+                $testResult['orders'] =
+                    $orderPage['rows'];
+
+                $testResult['staff'] =
+                    $staffPage['rows'];
+
+                $testResult['services'] =
+                    $servicePage['rows'];
+
+                $testResult['pagination'] = [
+                    'appointments' => $appointmentPage['meta'],
+                    'orders' => $orderPage['meta'],
+                    'staff' => $staffPage['meta'],
+                    'services' => $servicePage['meta'],
+                ];
+
+                $testResult['full_result_loaded'] = true;
+            } else {
+                $testResult['full_result_loaded'] = false;
+            }
+        } catch (Throwable $e) {
+            $testResult['full_result_loaded'] = false;
+            error_log(
+                '[Boulevard Live Console / Complete-result cache] '
+                . $e->getMessage()
+            );
+        }
+    }
+
+
+    /*
+     * ------------------------------------------------------------
      * LOCATION TIMEZONE
      * ------------------------------------------------------------
      *
@@ -1975,6 +2078,305 @@ case 'boulevard-live-console':
 
     break;
 
+
+
+case 'boulevard-ruma-intelligence':
+
+    require_admin();
+
+    $liveResult =
+        $_SESSION['_boulevard_live_console_result']
+        ?? null;
+
+    if (
+        !is_array($liveResult)
+        || empty($liveResult['success'])
+        || !is_array($liveResult['priority_intelligence'] ?? null)
+    ) {
+        flash(
+            'warning',
+            'Fetch RUMA Boulevard data first, then open Priority Intelligence.'
+        );
+        redirect(url('boulevard-live-console'));
+    }
+
+    $priorityAnalytics = $liveResult['priority_intelligence'];
+
+    /*
+     * Re-check the exact-period Boulevard Report Export dashboard on every
+     * Priority Intelligence page load. Direct live API metrics remain the
+     * primary source; this only fills unavailable metrics.
+     */
+    try {
+        require_once __DIR__
+            . '/app/Services/RumaBoulevardReportEnricher.php';
+
+        $fallbackBusinessId = (int)(
+            $priorityAnalytics['meta']['aesthetic_business_id']
+            ?? business_context_id()
+            ?? 0
+        );
+        $fallbackStart = (string)($priorityAnalytics['period']['start'] ?? '');
+        $fallbackEnd = (string)($priorityAnalytics['period']['end'] ?? '');
+
+        if ($fallbackBusinessId > 0 && $fallbackStart !== '' && $fallbackEnd !== '') {
+            $fallbackDashboard =
+                RumaBoulevardReportEnricher::loadExactPeriodDashboard(
+                    $fallbackBusinessId,
+                    $fallbackStart,
+                    $fallbackEnd
+                );
+
+            if (is_array($fallbackDashboard)) {
+                $priorityAnalytics =
+                    RumaBoulevardReportEnricher::merge(
+                        $priorityAnalytics,
+                        $fallbackDashboard
+                    );
+
+                $_SESSION['_boulevard_live_console_result']['priority_intelligence'] =
+                    $priorityAnalytics;
+            }
+        }
+    } catch (Throwable $fallbackRefreshError) {
+        error_log(
+            '[Boulevard Priority Intelligence / Fallback refresh] '
+            . $fallbackRefreshError->getMessage()
+        );
+    }
+
+    /*
+     * ------------------------------------------------------------
+     * PDF / MANUAL-UPLOAD COMPARISON SOURCES
+     * ------------------------------------------------------------
+     *
+     * The existing Boulevard upload pipeline already turns the old source
+     * reports into upload_batches.dashboard_json.  Reuse that canonical
+     * normalized dashboard instead of building a second PDF parser here.
+     * Only exact-period uploads are offered, matching the GA4 validation rule.
+     */
+    $comparisonBatches = [];
+    $comparisonResult = null;
+
+    try {
+        require_once __DIR__
+            . '/app/Services/RumaBoulevardUploadComparison.php';
+
+        $comparisonBusinessId = (int)(
+            $priorityAnalytics['meta']['aesthetic_business_id']
+            ?? business_context_id()
+            ?? 0
+        );
+
+        /*
+         * The RUMA live console can be opened without first switching the
+         * admin business context. Resolve Ruma Aesthetics as a safe fallback.
+         */
+        if ($comparisonBusinessId < 1) {
+            $rumaStmt = db()->prepare(
+                "SELECT id
+                 FROM businesses
+                 WHERE LOWER(name) IN ('ruma aesthetics','ruma')
+                 ORDER BY id
+                 LIMIT 1"
+            );
+            $rumaStmt->execute();
+            $comparisonBusinessId = (int)$rumaStmt->fetchColumn();
+        }
+
+        $comparisonStart = (string)($priorityAnalytics['period']['start'] ?? '');
+        $comparisonEnd = (string)($priorityAnalytics['period']['end'] ?? '');
+
+        if ($comparisonBusinessId > 0 && $comparisonStart !== '' && $comparisonEnd !== '') {
+            $comparisonBatches =
+                RumaBoulevardUploadComparison::findExactPeriodBatches(
+                    $comparisonBusinessId,
+                    $comparisonStart,
+                    $comparisonEnd
+                );
+        }
+
+        $storedComparison =
+            $_SESSION['_boulevard_ruma_upload_comparison']
+            ?? null;
+
+        if (
+            is_array($storedComparison)
+            && (int)($storedComparison['business_id'] ?? 0) === $comparisonBusinessId
+            && (string)($storedComparison['period_start'] ?? '') === $comparisonStart
+            && (string)($storedComparison['period_end'] ?? '') === $comparisonEnd
+        ) {
+            $comparisonResult = $storedComparison;
+        }
+
+        $priorityAnalytics['meta']['comparison_business_id'] = $comparisonBusinessId;
+    } catch (Throwable $comparisonLoadError) {
+        error_log(
+            '[Boulevard Priority Intelligence / Comparison source load] '
+            . $comparisonLoadError->getMessage()
+        );
+    }
+
+    render(
+        'boulevard-ruma-intelligence',
+        [
+            'title' => 'RUMA Boulevard Priority Intelligence',
+            'analytics' => $priorityAnalytics,
+            'comparisonBatches' => $comparisonBatches,
+            'comparisonResult' => $comparisonResult,
+        ]
+    );
+
+    break;
+
+
+case 'boulevard-ruma-intelligence-compare':
+
+    require_admin();
+
+    if (!is_post()) {
+        redirect(url('boulevard-ruma-intelligence'));
+    }
+
+    csrf_enforce();
+
+    try {
+        $liveResult =
+            $_SESSION['_boulevard_live_console_result']
+            ?? null;
+
+        if (
+            !is_array($liveResult)
+            || empty($liveResult['success'])
+            || !is_array($liveResult['priority_intelligence'] ?? null)
+        ) {
+            throw new RuntimeException(
+                'Fetch RUMA Boulevard API data before running the upload comparison.'
+            );
+        }
+
+        $analytics =
+            is_array($liveResult['priority_intelligence_direct'] ?? null)
+                ? $liveResult['priority_intelligence_direct']
+                : $liveResult['priority_intelligence'];
+
+        $periodStart = (string)($analytics['period']['start'] ?? '');
+        $periodEnd = (string)($analytics['period']['end'] ?? '');
+
+        if ($periodStart === '' || $periodEnd === '') {
+            throw new RuntimeException(
+                'The live API result does not contain a valid reporting period.'
+            );
+        }
+
+        $businessId = (int)(
+            $analytics['meta']['aesthetic_business_id']
+            ?? business_context_id()
+            ?? 0
+        );
+
+        if ($businessId < 1) {
+            $rumaStmt = db()->prepare(
+                "SELECT id
+                 FROM businesses
+                 WHERE LOWER(name) IN ('ruma aesthetics','ruma')
+                 ORDER BY id
+                 LIMIT 1"
+            );
+            $rumaStmt->execute();
+            $businessId = (int)$rumaStmt->fetchColumn();
+        }
+
+        if ($businessId < 1) {
+            throw new RuntimeException(
+                'Ruma Aesthetics could not be resolved in Aesthetic Intel.'
+            );
+        }
+
+        $batchId = (int)($_POST['batch_id'] ?? 0);
+        if ($batchId < 1) {
+            throw new RuntimeException(
+                'Choose an exact-period Boulevard upload to compare.'
+            );
+        }
+
+        require_once __DIR__
+            . '/app/Services/RumaBoulevardUploadComparison.php';
+
+        $batch =
+            RumaBoulevardUploadComparison::loadBatch(
+                $businessId,
+                $batchId,
+                $periodStart,
+                $periodEnd
+            );
+
+        if (!is_array($batch)) {
+            throw new RuntimeException(
+                'The selected upload is missing, invalid, or belongs to a different reporting period.'
+            );
+        }
+
+        $comparison =
+            RumaBoulevardUploadComparison::compare(
+                $analytics,
+                $batch['dashboard']
+            );
+
+        $_SESSION['_boulevard_ruma_upload_comparison'] = [
+            'success' => true,
+            'business_id' => $businessId,
+            'batch_id' => (int)$batch['id'],
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
+            'upload_frequency' => (string)($batch['frequency'] ?? ''),
+            'upload_validation_status' => (string)($batch['validation_status'] ?? 'validated'),
+            'upload_completeness_score' => $batch['completeness_score'] ?? null,
+            'upload_created_at' => (string)($batch['created_at'] ?? ''),
+            'comparison' => $comparison,
+        ];
+
+        audit(
+            'boulevard_live_api_upload_compared',
+            [
+                'batch_id' => (int)$batch['id'],
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'comparable_metrics' => $comparison['comparable_metrics'],
+                'matched_metrics' => $comparison['matched_metrics'],
+                'review_metrics' => $comparison['review_metrics'],
+                'match_percent' => $comparison['match_percent'],
+            ],
+            $businessId
+        );
+
+        if ($comparison['overall_status'] === 'verified') {
+            flash(
+                'success',
+                'Boulevard live API and uploaded report data matched for every comparable metric.'
+            );
+        } else {
+            flash(
+                'warning',
+                'Boulevard API/upload comparison completed. Review the highlighted differences.'
+            );
+        }
+
+    } catch (Throwable $e) {
+        error_log(
+            '[Boulevard Priority Intelligence / Upload comparison] '
+            . $e->getMessage()
+        );
+
+        flash(
+            'error',
+            'Boulevard comparison failed: ' . $e->getMessage()
+        );
+    }
+
+    redirect(url('boulevard-ruma-intelligence'));
+
+    break;
 
 
 case 'boulevard-live-console-run':
@@ -2657,6 +3059,360 @@ case 'boulevard-live-console-run':
 
         /*
          * --------------------------------------------------------
+         * RUMA PRIORITY INTELLIGENCE ENRICHMENT
+         * --------------------------------------------------------
+         *
+         * IMPORTANT:
+         * The existing console data above remains the fallback/source of truth.
+         * These optional calls only enrich the new intelligence dashboard.
+         * A scope/schema failure here must never break the existing console.
+         */
+
+        $analyticsAppointments = $appointments;
+        $analyticsOrders = $orders;
+        $analyticsShifts = [];
+        $analyticsMemberships = [];
+        $analyticsPackages = [];
+        $analyticsMembershipPlans = [];
+        $analyticsProducts = [];
+        $boulevardPermissions = [];
+        $previousAppointments = [];
+        $previousOrders = [];
+        $previousShifts = [];
+        $analyticsWarnings = [];
+
+        try {
+            $boulevardPermissions = $boulevard->getPermissions();
+        } catch (Throwable $e) {
+            error_log(
+                '[Boulevard Priority Intelligence / Permissions] '
+                . $e->getMessage()
+            );
+        }
+
+        try {
+            $analyticsAppointments =
+                $boulevard->getAppointmentsAnalytics(
+                    $locationId,
+                    $from,
+                    $toExclusive
+                );
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Requested-appointment/new-client enrichment is unavailable; core appointment data is being used.';
+            error_log(
+                '[Boulevard Priority Intelligence / Appointment enrichment] '
+                . $e->getMessage()
+            );
+        }
+
+        try {
+            $analyticsOrders =
+                $boulevard->getOrdersAnalytics(
+                    $locationId,
+                    $from,
+                    $toExclusive
+                );
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Detailed order-line/payment enrichment is unavailable; core order totals are being used.';
+            error_log(
+                '[Boulevard Priority Intelligence / Order enrichment] '
+                . $e->getMessage()
+            );
+        }
+
+        /*
+         * Staff shifts unlock blended/provider utilization and
+         * revenue-per-scheduled-hour.  This is read-only operational data.
+         */
+        try {
+            $analyticsShifts =
+                $boulevard->getShiftsAnalytics(
+                    $locationId,
+                    $from,
+                    $toExclusive
+                );
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Provider schedule enrichment is unavailable, so utilization and revenue/hour cannot be calculated.';
+            error_log(
+                '[Boulevard Priority Intelligence / Shift enrichment] '
+                . $e->getMessage()
+            );
+        }
+
+        /*
+         * Memberships unlock current Active MRR / ARR.  The query deliberately
+         * excludes client name, email, phone and notes.
+         */
+        try {
+            $allMemberships = $boulevard->getMembershipsAnalytics();
+
+            /* Keep the dashboard location-specific when Boulevard supplies locationId. */
+            $analyticsMemberships = array_values(
+                array_filter(
+                    $allMemberships,
+                    static function (array $membership) use ($locationId): bool {
+                        $membershipLocation = trim((string)($membership['locationId'] ?? ''));
+                        return $membershipLocation === '' || $membershipLocation === $locationId;
+                    }
+                )
+            );
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Membership enrichment is unavailable, so Active MRR / ARR cannot be calculated.';
+            error_log(
+                '[Boulevard Priority Intelligence / Membership enrichment] '
+                . $e->getMessage()
+            );
+        }
+
+        /*
+         * Package catalogue is used only to classify retail order lines.
+         * Failure here never affects the existing Boulevard console.
+         */
+        try {
+            $analyticsPackages = $boulevard->getPackagesAnalytics();
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Package catalogue enrichment is unavailable; package sales may require the Boulevard report export source.';
+            error_log(
+                '[Boulevard Priority Intelligence / Package enrichment] '
+                . $e->getMessage()
+            );
+        }
+
+        try {
+            $analyticsMembershipPlans = $boulevard->getMembershipPlansAnalytics();
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Membership-plan catalogue enrichment is unavailable.';
+            error_log(
+                '[Boulevard Priority Intelligence / Membership plans] '
+                . $e->getMessage()
+            );
+        }
+
+        try {
+            $analyticsProducts = $boulevard->getProductsAnalytics();
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Complete product catalogue enrichment is unavailable.';
+            error_log(
+                '[Boulevard Priority Intelligence / Products] '
+                . $e->getMessage()
+            );
+        }
+
+        /* Same-length immediately preceding comparison period. */
+        $periodLengthDays = $rangeDays + 1;
+        $previousToExclusive = $from;
+        $previousFrom = $from->modify('-' . $periodLengthDays . ' days');
+
+        try {
+            $previousAppointments =
+                $boulevard->getAppointmentsAnalytics(
+                    $locationId,
+                    $previousFrom,
+                    $previousToExclusive
+                );
+        } catch (Throwable $e) {
+            try {
+                $previousAppointments =
+                    $boulevard->getAppointments(
+                        $locationId,
+                        $previousFrom,
+                        $previousToExclusive
+                    );
+            } catch (Throwable $fallbackError) {
+                $analyticsWarnings[] =
+                    'Previous-period appointment comparison is unavailable.';
+                error_log(
+                    '[Boulevard Priority Intelligence / Previous appointments] '
+                    . $fallbackError->getMessage()
+                );
+            }
+        }
+
+        try {
+            $previousOrders =
+                $boulevard->getOrdersAnalytics(
+                    $locationId,
+                    $previousFrom,
+                    $previousToExclusive
+                );
+        } catch (Throwable $e) {
+            try {
+                $previousOrders =
+                    $boulevard->getOrders(
+                        $locationId,
+                        $previousFrom,
+                        $previousToExclusive
+                    );
+            } catch (Throwable $fallbackError) {
+                $analyticsWarnings[] =
+                    'Previous-period revenue comparison is unavailable.';
+                error_log(
+                    '[Boulevard Priority Intelligence / Previous orders] '
+                    . $fallbackError->getMessage()
+                );
+            }
+        }
+
+        try {
+            $previousShifts =
+                $boulevard->getShiftsAnalytics(
+                    $locationId,
+                    $previousFrom,
+                    $previousToExclusive
+                );
+        } catch (Throwable $e) {
+            /* Current-period utilization can still be shown without a comparison. */
+            error_log(
+                '[Boulevard Priority Intelligence / Previous shifts] '
+                . $e->getMessage()
+            );
+        }
+
+        $analyticsCapabilities = $boulevard->getAnalyticsCapabilities();
+
+        $rumaAnalytics = null;
+        $rumaDirectAnalytics = null;
+
+        try {
+            require_once __DIR__
+                . '/app/Services/RumaBoulevardAnalytics.php';
+
+            $analyticsService =
+                new RumaBoulevardAnalytics(
+                    [
+                        'period_start' => $startDate,
+                        'period_end' => $endDate,
+                        'previous_period_start' => $previousFrom->format('Y-m-d'),
+                        'previous_period_end' => $from->modify('-1 day')->format('Y-m-d'),
+                        'capabilities' => $analyticsCapabilities,
+                'permissions' => $boulevardPermissions,
+                'dataset_counts' => [
+                    'appointments' => count($analyticsAppointments),
+                    'orders' => count($analyticsOrders),
+                    'shifts' => count($analyticsShifts),
+                    'memberships' => count($analyticsMemberships),
+                    'membership_plans' => count($analyticsMembershipPlans),
+                    'packages' => count($analyticsPackages),
+                    'products' => count($analyticsProducts),
+                ],
+                        'appointments' => $analyticsAppointments,
+                        'orders' => $analyticsOrders,
+                        'staff' => $staff,
+                        'services' => $services,
+                        'shifts' => $analyticsShifts,
+                        'memberships' => $analyticsMemberships,
+                        'membership_plans' => $analyticsMembershipPlans,
+                        'packages' => $analyticsPackages,
+                        'products' => $analyticsProducts,
+                        'previous_appointments' => $previousAppointments,
+                        'previous_orders' => $previousOrders,
+                        'previous_shifts' => $previousShifts,
+
+                        /*
+                         * Memberships are a lifecycle collection rather than a
+                         * date-window transaction feed. Reuse the complete
+                         * collection and calculate its state as-of the previous
+                         * period end inside RumaBoulevardAnalytics.
+                         */
+                        'previous_memberships' => $analyticsMemberships,
+                    ],
+                    [
+                        'money_divisor' => 100,
+                    ]
+                );
+
+            $rumaAnalytics = $analyticsService->build();
+
+            /*
+             * Keep an untouched direct-API snapshot for API-vs-upload
+             * verification. The zero-blank report fallback below is useful
+             * for display, but must not make a comparison appear to match by
+             * comparing uploaded data with itself.
+             */
+            $rumaDirectAnalytics = $rumaAnalytics;
+
+            /*
+             * Zero-blank fallback: if a metric is still unavailable from the
+             * direct Admin API, reuse an exact-period dashboard produced by
+             * the existing Boulevard Report Export API pipeline. Direct live
+             * metrics always win; this only fills unavailable fields.
+             */
+            if ($auditBusinessId > 0) {
+                try {
+                    require_once __DIR__
+                        . '/app/Services/RumaBoulevardReportEnricher.php';
+
+                    $reportDashboard =
+                        RumaBoulevardReportEnricher::loadExactPeriodDashboard(
+                            $auditBusinessId,
+                            $startDate,
+                            $endDate
+                        );
+
+                    if (is_array($reportDashboard)) {
+                        $rumaAnalytics =
+                            RumaBoulevardReportEnricher::merge(
+                                $rumaAnalytics,
+                                $reportDashboard
+                            );
+                    }
+                } catch (Throwable $reportFallbackError) {
+                    $analyticsWarnings[] =
+                        'Boulevard Report Export fallback could not be merged.';
+                    error_log(
+                        '[Boulevard Priority Intelligence / Report fallback] '
+                        . $reportFallbackError->getMessage()
+                    );
+                }
+            }
+
+            $analyticsMeta = [
+                'business_name' => (string)($business['name'] ?? 'RUMA'),
+                'aesthetic_business_id' => $auditBusinessId,
+                'location_name' => (string)($resolvedLocation['name'] ?? $locationName),
+                'timezone' => (string)($resolvedLocation['tz'] ?? $locationTimezoneName),
+                'fetched_at' => date('Y-m-d H:i:s'),
+                'previous_period_start' => $previousFrom->format('Y-m-d'),
+                'previous_period_end' => $from->modify('-1 day')->format('Y-m-d'),
+                'warnings' => $analyticsWarnings,
+                'capabilities' => $analyticsCapabilities,
+                'permissions' => $boulevardPermissions,
+                'dataset_counts' => [
+                    'appointments' => count($analyticsAppointments),
+                    'orders' => count($analyticsOrders),
+                    'shifts' => count($analyticsShifts),
+                    'memberships' => count($analyticsMemberships),
+                    'membership_plans' => count($analyticsMembershipPlans),
+                    'packages' => count($analyticsPackages),
+                    'products' => count($analyticsProducts),
+                ],
+            ];
+
+            $rumaAnalytics['meta'] = $analyticsMeta;
+
+            if (is_array($rumaDirectAnalytics)) {
+                $rumaDirectAnalytics['meta'] = $analyticsMeta;
+                $rumaDirectAnalytics['meta']['direct_api_only'] = true;
+            }
+        } catch (Throwable $e) {
+            $analyticsWarnings[] =
+                'Priority Intelligence could not be calculated for this fetch.';
+            error_log(
+                '[Boulevard Priority Intelligence / Build] '
+                . $e->getMessage()
+            );
+        }
+
+
+        /*
+         * --------------------------------------------------------
          * METRICS
          * --------------------------------------------------------
          */
@@ -2991,15 +3747,52 @@ case 'boulevard-live-console-run':
 
         /*
          * --------------------------------------------------------
-         * STORE RESULT
+         * STORE COMPLETE RESULT + COMPACT SESSION POINTER
          * --------------------------------------------------------
          *
-         * We intentionally limit detailed records kept in
-         * the session.
+         * IMPORTANT:
+         * `first: 100` in BoulevardService is the per-request page size,
+         * not a total-record cap. BoulevardService keeps following cursors
+         * until hasNextPage=false.
          *
-         * Metrics are calculated from the complete fetched
-         * response before these display limits are applied.
+         * Previously this route then used array_slice(..., 0, 100/200)
+         * before writing to the session, which made the console LOOK like
+         * only the first rows existed. The complete privacy-safe datasets are
+         * now stored in storage/ and the GET route pages through all of them.
          */
+
+        require_once __DIR__
+            . '/app/Services/Boulevard/BoulevardLiveResultStore.php';
+
+        $previousFullResultKey =
+            (string)(
+                $_SESSION['_boulevard_live_console_result']['full_result_key']
+                ?? ''
+            );
+
+        $fullResultKey =
+            BoulevardLiveResultStore::save(
+                [
+                    'fetched_at' => date('Y-m-d H:i:s'),
+                    'period_start' => $startDate,
+                    'period_end' => $endDate,
+                    'locations' => $locations,
+                    'staff' => $staff,
+                    'services' => $services,
+                    'appointments' => $appointments,
+                    'orders' => $orders,
+                ]
+            );
+
+        if (
+            $previousFullResultKey !== ''
+            &&
+            $previousFullResultKey !== $fullResultKey
+        ) {
+            BoulevardLiveResultStore::delete(
+                $previousFullResultKey
+            );
+        }
 
         $_SESSION[
             '_boulevard_live_console_result'
@@ -3034,43 +3827,46 @@ case 'boulevard-live-console-run':
                 ),
 
             /*
-             * Reference data.
+             * Compact full-period analytics. The analytics were built from
+             * the complete current/previous Boulevard arrays before anything
+             * was paged for UI display.
              */
-
-            'staff' =>
-                array_slice(
-                    $staff,
-                    0,
-                    200
-                ),
-
-            'services' =>
-                array_slice(
-                    $services,
-                    0,
-                    200
-                ),
+            'priority_intelligence' =>
+                $rumaAnalytics,
 
             /*
-             * Display samples only.
-             *
-             * Do not unnecessarily fill the PHP session
-             * with hundreds/thousands of records.
+             * Direct API analytics before report/PDF fallback. This is used
+             * only for source verification so the comparison remains honest.
              */
+            'priority_intelligence_direct' =>
+                $rumaDirectAnalytics,
 
-            'appointments' =>
-                array_slice(
-                    $appointments,
-                    0,
-                    100
-                ),
+            'priority_intelligence_warnings' =>
+                $analyticsWarnings,
 
-            'orders' =>
-                array_slice(
-                    $orders,
-                    0,
-                    100
-                ),
+            /*
+             * Opaque pointer to the complete privacy-safe fetch result.
+             * The GET route loads page 1/2/3... from this cache.
+             */
+            'full_result_key' =>
+                $fullResultKey,
+
+            'full_fetch' => [
+                'complete' => true,
+                'page_size' => 100,
+                'pagination_mode' => 'cursor',
+                'note' =>
+                    'All Boulevard cursor pages were collected before analytics and UI pagination.',
+            ],
+
+            /*
+             * Do not duplicate the raw bulk datasets in the PHP session.
+             * The GET route hydrates the requested page from full_result_key.
+             */
+            'staff' => [],
+            'services' => [],
+            'appointments' => [],
+            'orders' => [],
 
             'counts' => [
 
@@ -3098,10 +3894,42 @@ case 'boulevard-live-console-run':
                     count(
                         $orders
                     ),
+
+                'analytics_appointments' =>
+                    count(
+                        $analyticsAppointments
+                    ),
+
+                'analytics_orders' =>
+                    count(
+                        $analyticsOrders
+                    ),
+
+                'shifts' =>
+                    count(
+                        $analyticsShifts
+                    ),
+
+                'memberships' =>
+                    count(
+                        $analyticsMemberships
+                    ),
+
+                'packages' =>
+                    count(
+                        $analyticsPackages
+                    ),
             ],
 
             'warnings' =>
-                $warnings,
+                array_values(
+                    array_unique(
+                        array_merge(
+                            $warnings,
+                            $analyticsWarnings
+                        )
+                    )
+                ),
         ];
 
 

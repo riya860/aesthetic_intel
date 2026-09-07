@@ -26,17 +26,30 @@ final class BoulevardService
     private const PAGE_SIZE = 100;
 
     /**
-     * Safety limit to prevent an accidental infinite pagination loop.
-     *
-     * 1000 pages × 100 records = 100,000 records maximum
-     * in one service call.
-     */
-    private const MAX_PAGES = 1000;
-
-    /**
      * Boulevard GraphQL client.
      */
     private BoulevardClient $client;
+
+    /**
+     * Records which optional analytics sources were actually accepted by the
+     * Boulevard schema/application during this request. This lets the UI
+     * distinguish a real zero from "source not available".
+     */
+    private array $analyticsCapabilities = [
+        'appointment_client_metadata' => false,
+        'requested_staff' => false,
+        'order_payments' => false,
+        'order_service_lines' => false,
+        'order_provider_attribution' => false,
+        'order_retail_lines' => false,
+        'shifts' => false,
+        'memberships' => false,
+        'packages' => false,
+        'package_product_mapping' => false,
+        'membership_plans' => false,
+        'products' => false,
+        'permissions' => false,
+    ];
 
 
     /**
@@ -46,6 +59,40 @@ final class BoulevardService
         BoulevardClient $client
     ) {
         $this->client = $client;
+    }
+
+
+    /**
+     * Optional-source capability report for the intelligence layer.
+     */
+    public function getAnalyticsCapabilities(): array
+    {
+        return $this->analyticsCapabilities;
+    }
+
+
+    /**
+     * Return the permissions/scopes granted to the current Boulevard app.
+     * This query does not require an extra read scope and is used to explain
+     * why an optional analytics source may be unavailable.
+     */
+    public function getPermissions(): array
+    {
+        $query = <<<'GRAPHQL'
+query Permissions {
+    permissions
+}
+GRAPHQL;
+
+        $data = $this->client->query($query);
+        $permissions = $data['permissions'] ?? [];
+        if (!is_array($permissions)) {
+            $permissions = [];
+        }
+
+        $this->analyticsCapabilities['permissions'] = true;
+
+        return array_values(array_unique(array_map('strval', $permissions)));
     }
 
 
@@ -581,6 +628,719 @@ GRAPHQL;
     }
 
 
+    /**
+     * Fetch appointment data needed only by the RUMA intelligence dashboard.
+     *
+     * This is intentionally separate from getAppointments() so the proven
+     * live-console query remains untouched. Only opaque/minimal client metadata
+     * is requested; names, email, phone, notes and other identifiable fields are
+     * not requested.
+     */
+    public function getAppointmentsAnalytics(
+        string $locationId,
+        DateTimeInterface $from,
+        DateTimeInterface $to
+    ): array {
+        $this->validateDateRange($from, $to);
+        $locationId = self::normalizeResourceUrn($locationId, 'Location');
+        $filter = $this->buildDateRangeFilter('startAt', $from, $to);
+
+        $query = <<<'GRAPHQL'
+query AppointmentAnalytics(
+    $locationId: ID!,
+    $after: String,
+    $filter: QueryString
+) {
+    appointments(
+        locationId: $locationId,
+        first: 100,
+        after: $after,
+        query: $filter
+    ) {
+        edges {
+            node {
+                id
+                locationId
+                startAt
+                endAt
+                duration
+                cancelled
+                state
+                orderId
+                clientId
+
+                client {
+                    id
+                    appointmentCount
+                    createdAt
+                }
+
+                appointmentServices {
+                    id
+                    serviceId
+                    staffId
+                    staffRequested
+                    price
+                    duration
+                    startAt
+                    endAt
+                }
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+GRAPHQL;
+
+        $rows = $this->collectConnection(
+            query: $query,
+            variables: [
+                'locationId' => $locationId,
+                'filter' => $filter,
+            ],
+            connectionName: 'appointments'
+        );
+
+        $this->analyticsCapabilities['appointment_client_metadata'] = true;
+        $this->analyticsCapabilities['requested_staff'] = true;
+
+        return $rows;
+    }
+
+
+    /**
+     * Fetch detailed order information for revenue-mix/provider analytics.
+     *
+     * Separate from getOrders() to preserve the existing live console even if a
+     * Boulevard account lacks one of the optional detailed-order fields/scopes.
+     */
+    public function getOrdersAnalytics(
+        string $locationId,
+        DateTimeInterface $from,
+        DateTimeInterface $to
+    ): array {
+        $this->validateDateRange($from, $to);
+        $locationId = self::normalizeResourceUrn($locationId, 'Location');
+        $filter = $this->buildDateRangeFilter('closedAt', $from, $to);
+
+        /*
+         * Prefer the richest read-only shape.  It adds:
+         * - retail order-line groups
+         * - productId for catalog classification
+         * - provider attribution on service lines
+         * - payment totals/fees
+         *
+         * If RUMA's current Boulevard schema/application does not expose one
+         * of these optional fields, we fall back to the already-proven query
+         * instead of breaking the Live API Console.
+         */
+        $richQuery = <<<'GRAPHQL'
+query OrderAnalyticsFull(
+    $locationId: ID!,
+    $after: String,
+    $filter: QueryString
+) {
+    orders(
+        locationId: $locationId,
+        first: 100,
+        after: $after,
+        query: $filter
+    ) {
+        edges {
+            node {
+                id
+                locationId
+                number
+                createdAt
+                closedAt
+                updatedAt
+
+                summary {
+                    currentSubtotal
+                    currentDiscountAmount
+                    currentTaxAmount
+                    currentGratuityAmount
+                    currentFeeAmount
+                    currentTotal
+                    initialSubtotal
+                    initialDiscountAmount
+                    initialTaxAmount
+                    initialGratuityAmount
+                    initialFeeAmount
+                    initialTotal
+                    refundAmount
+                }
+
+                paymentGroups {
+                    totalPaid
+                    totalFees
+                }
+
+                lineGroups {
+                    __typename
+
+                    ... on OrderAppointmentLineGroup {
+                        lines {
+                            __typename
+                            id
+                            currentSubtotal
+                            quantity
+
+                            ... on OrderServiceLine {
+                                appointmentServiceId
+                                service {
+                                    id
+                                    name
+                                }
+                                providers {
+                                    id
+                                    name
+                                    selected
+                                    staff {
+                                        id
+                                        name
+                                        displayName
+                                    }
+                                }
+                            }
+
+                            ... on OrderProductLine {
+                                name
+                                productId
+                                seller {
+                                    id
+                                    name
+                                    displayName
+                                }
+                            }
+                        }
+                    }
+
+                    ... on OrderRetailLineGroup {
+                        lines {
+                            __typename
+                            id
+                            currentSubtotal
+                            quantity
+
+                            ... on OrderProductLine {
+                                name
+                                productId
+                                seller {
+                                    id
+                                    name
+                                    displayName
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+GRAPHQL;
+
+        try {
+            $rows = $this->collectConnection(
+                query: $richQuery,
+                variables: [
+                    'locationId' => $locationId,
+                    'filter' => $filter,
+                ],
+                connectionName: 'orders'
+            );
+
+            $this->analyticsCapabilities['order_payments'] = true;
+            $this->analyticsCapabilities['order_service_lines'] = true;
+            $this->analyticsCapabilities['order_provider_attribution'] = true;
+            $this->analyticsCapabilities['order_retail_lines'] = true;
+
+            return $rows;
+        } catch (Throwable $richError) {
+            error_log(
+                '[Boulevard / Order analytics rich shape unavailable] '
+                . $richError->getMessage()
+            );
+        }
+
+        $compatQuery = <<<'GRAPHQL'
+query OrderAnalyticsCompat(
+    $locationId: ID!,
+    $after: String,
+    $filter: QueryString
+) {
+    orders(
+        locationId: $locationId,
+        first: 100,
+        after: $after,
+        query: $filter
+    ) {
+        edges {
+            node {
+                id
+                locationId
+                number
+                createdAt
+                closedAt
+                updatedAt
+
+                summary {
+                    currentSubtotal
+                    currentDiscountAmount
+                    currentTaxAmount
+                    currentGratuityAmount
+                    currentFeeAmount
+                    currentTotal
+                    initialSubtotal
+                    initialDiscountAmount
+                    initialTaxAmount
+                    initialGratuityAmount
+                    initialFeeAmount
+                    initialTotal
+                    refundAmount
+                }
+
+                paymentGroups {
+                    totalPaid
+                    totalFees
+                }
+
+                lineGroups {
+                    __typename
+                    ... on OrderAppointmentLineGroup {
+                        lines {
+                            __typename
+                            id
+                            currentSubtotal
+                            quantity
+                            ... on OrderServiceLine {
+                                name
+                            }
+                            ... on OrderProductLine {
+                                name
+                                seller {
+                                    id
+                                    name
+                                    displayName
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+GRAPHQL;
+
+        $rows = $this->collectConnection(
+            query: $compatQuery,
+            variables: [
+                'locationId' => $locationId,
+                'filter' => $filter,
+            ],
+            connectionName: 'orders'
+        );
+
+        /* The compatibility shape still includes payment totals + service lines. */
+        $this->analyticsCapabilities['order_payments'] = true;
+        $this->analyticsCapabilities['order_service_lines'] = true;
+
+        return $rows;
+    }
+
+
+    /**
+     * Fetch provider schedules for utilization/revenue-per-scheduled-hour.
+     *
+     * This query is intentionally independent of the existing console fetch.
+     * It returns only operational schedule data and no client information.
+     */
+    public function getShiftsAnalytics(
+        string $locationId,
+        DateTimeInterface $from,
+        DateTimeInterface $to
+    ): array {
+        $this->validateDateRange($from, $to);
+        $locationId = self::normalizeResourceUrn($locationId, 'Location');
+
+        $fromDate = DateTimeImmutable::createFromInterface($from)->format('Y-m-d');
+        $toDate = DateTimeImmutable::createFromInterface($to)
+            ->modify('-1 day')
+            ->format('Y-m-d');
+
+        /*
+         * Boulevard has exposed two staff-shift shapes across API revisions.
+         * Try the concrete occurrence shape first, then the recurring
+         * StaffShift shape documented by the current Admin API.
+         */
+        $occurrenceQuery = <<<'GRAPHQL'
+query StaffShiftsConcrete(
+    $locationId: ID!,
+    $start: Date!,
+    $end: Date!
+) {
+    shifts(
+        locationId: $locationId,
+        startIso8601: $start,
+        endIso8601: $end
+    ) {
+        shifts {
+            id
+            date
+            startTime
+            endTime
+            available
+            unavailableReason
+            staffId
+        }
+    }
+}
+GRAPHQL;
+
+        try {
+            $data = $this->client->query(
+                $occurrenceQuery,
+                [
+                    'locationId' => $locationId,
+                    'start' => $fromDate,
+                    'end' => $toDate,
+                ]
+            );
+
+            $rows = $data['shifts']['shifts'] ?? [];
+            if (!is_array($rows)) {
+                throw new RuntimeException('Boulevard returned an invalid shift payload.');
+            }
+
+            $this->analyticsCapabilities['shifts'] = true;
+
+            return array_values(array_filter($rows, 'is_array'));
+        } catch (Throwable $occurrenceError) {
+            error_log('[Boulevard / Concrete shift shape unavailable] ' . $occurrenceError->getMessage());
+        }
+
+        $recurringQuery = <<<'GRAPHQL'
+query StaffShiftsRecurring(
+    $locationId: ID!,
+    $start: Date!,
+    $end: Date!
+) {
+    shifts(
+        locationId: $locationId,
+        startIso8601: $start,
+        endIso8601: $end
+    ) {
+        shifts {
+            available
+            bookingInterval
+            clockIn
+            clockOut
+            day
+            locationId
+            recurrence
+            recurrenceStart
+            recurrenceEnd
+            recurrenceInterval
+            staffId
+            unavailableReason
+        }
+    }
+}
+GRAPHQL;
+
+        $data = $this->client->query(
+            $recurringQuery,
+            [
+                'locationId' => $locationId,
+                'start' => $fromDate,
+                'end' => $toDate,
+            ]
+        );
+
+        $rows = $data['shifts']['shifts'] ?? [];
+        if (!is_array($rows)) {
+            throw new RuntimeException('Boulevard returned an invalid recurring shift payload.');
+        }
+
+        $expanded = $this->expandRecurringStaffShifts(
+            array_values(array_filter($rows, 'is_array')),
+            DateTimeImmutable::createFromInterface($from),
+            DateTimeImmutable::createFromInterface($to)
+        );
+
+        $this->analyticsCapabilities['shifts'] = true;
+
+        return $expanded;
+    }
+
+
+    /**
+     * Expand Boulevard StaffShift recurrence rows into concrete daily
+     * occurrences so utilization can be calculated exactly for the selected
+     * period. Boulevard documents day as 0=Sunday ... 6=Saturday.
+     */
+    private function expandRecurringStaffShifts(
+        array $rows,
+        DateTimeImmutable $from,
+        DateTimeImmutable $toExclusive
+    ): array {
+        $out = [];
+        $periodStart = $from->setTime(0, 0);
+        $periodEnd = $toExclusive->setTime(0, 0);
+
+        foreach ($rows as $row) {
+            $clockIn = trim((string)($row['clockIn'] ?? ''));
+            $clockOut = trim((string)($row['clockOut'] ?? ''));
+            $staffId = trim((string)($row['staffId'] ?? ''));
+            $available = array_key_exists('available', $row) ? (bool)$row['available'] : true;
+
+            if ($clockIn === '' || $clockOut === '' || $staffId === '') {
+                continue;
+            }
+
+            $day = isset($row['day']) ? (int)$row['day'] : null;
+            $recurrenceStart = !empty($row['recurrenceStart'])
+                ? new DateTimeImmutable((string)$row['recurrenceStart'])
+                : $periodStart;
+            $recurrenceEnd = !empty($row['recurrenceEnd'])
+                ? (new DateTimeImmutable((string)$row['recurrenceEnd']))->modify('+1 day')
+                : $periodEnd;
+
+            $effectiveStart = $recurrenceStart > $periodStart ? $recurrenceStart : $periodStart;
+            $effectiveEnd = $recurrenceEnd < $periodEnd ? $recurrenceEnd : $periodEnd;
+
+            if ($effectiveStart >= $effectiveEnd) {
+                continue;
+            }
+
+            $intervalWeeks = max(1, (int)($row['recurrenceInterval'] ?? 1));
+            $recurrence = strtoupper(trim((string)($row['recurrence'] ?? '')));
+
+            for ($cursor = $effectiveStart; $cursor < $effectiveEnd; $cursor = $cursor->modify('+1 day')) {
+                $weekday = (int)$cursor->format('w');
+                if ($day !== null && $weekday !== $day) {
+                    continue;
+                }
+
+                if ($recurrence !== '' && $recurrence !== 'NONE' && $intervalWeeks > 1) {
+                    $anchor = $recurrenceStart->setTime(0, 0);
+                    $daysSince = (int)$anchor->diff($cursor->setTime(0, 0))->format('%r%a');
+                    if ($daysSince < 0 || intdiv($daysSince, 7) % $intervalWeeks !== 0) {
+                        continue;
+                    }
+                }
+
+                $out[] = [
+                    'date' => $cursor->format('Y-m-d'),
+                    'startTime' => $clockIn,
+                    'endTime' => $clockOut,
+                    'available' => $available,
+                    'unavailableReason' => $row['unavailableReason'] ?? null,
+                    'staffId' => $staffId,
+                    'locationId' => $row['locationId'] ?? null,
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+
+    /**
+     * Fetch all business memberships so the dashboard can calculate current
+     * active MRR/ARR without using client names, email, phone or notes.
+     */
+    public function getMembershipsAnalytics(): array
+    {
+        $query = <<<'GRAPHQL'
+query MembershipsAnalytics($after: String) {
+    memberships(first: 100, after: $after) {
+        edges {
+            node {
+                id
+                locationId
+                name
+                productId
+                startOn
+                endOn
+                cancelOn
+                nextChargeDate
+                interval
+                status
+                termNumber
+                unitPrice
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+GRAPHQL;
+
+        $rows = $this->collectConnection(
+            query: $query,
+            variables: [],
+            connectionName: 'memberships'
+        );
+
+        $this->analyticsCapabilities['memberships'] = true;
+
+        return $rows;
+    }
+
+
+    /**
+     * Package catalogue is optional.  Where Boulevard exposes a backing
+     * product ID we use it to classify OrderProductLine rows as package sales.
+     */
+    public function getPackagesAnalytics(): array
+    {
+        $query = <<<'GRAPHQL'
+query PackagesAnalytics($after: String) {
+    packages(first: 100, after: $after) {
+        edges {
+            node {
+                id
+                name
+                active
+                unitPrice
+                externalId
+                category {
+                    id
+                    name
+                }
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+GRAPHQL;
+
+        $rows = $this->collectConnection(
+            query: $query,
+            variables: [],
+            connectionName: 'packages'
+        );
+
+        $this->analyticsCapabilities['packages'] = true;
+
+        return $rows;
+    }
+
+
+    /**
+     * Fetch membership-plan catalogue metadata. This is distinct from sold
+     * memberships and helps classify order product lines even when a plan has
+     * no currently active subscriber.
+     */
+    public function getMembershipPlansAnalytics(): array
+    {
+        $query = <<<'GRAPHQL'
+query MembershipPlansAnalytics($after: String) {
+    membershipPlans(first: 100, after: $after) {
+        edges {
+            node {
+                id
+                name
+                active
+                interval
+                unitPrice
+                externalId
+                category {
+                    id
+                    name
+                }
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+GRAPHQL;
+
+        $rows = $this->collectConnection(
+            query: $query,
+            variables: [],
+            connectionName: 'membershipPlans'
+        );
+
+        $this->analyticsCapabilities['membership_plans'] = true;
+
+        return $rows;
+    }
+
+
+    /**
+     * Fetch the complete product catalogue, including package and membership
+     * plan products where Boulevard permits it. Product IDs from order lines
+     * can then be classified against the catalogue.
+     */
+    public function getProductsAnalytics(): array
+    {
+        $query = <<<'GRAPHQL'
+query ProductsAnalytics($after: String) {
+    products(
+        first: 100,
+        after: $after,
+        includePackages: true,
+        includePlans: true
+    ) {
+        edges {
+            node {
+                id
+                name
+                active
+                externalId
+                categoryId
+                category {
+                    id
+                    name
+                }
+                brandName
+                unitPrice
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+    }
+}
+GRAPHQL;
+
+        $rows = $this->collectConnection(
+            query: $query,
+            variables: [],
+            connectionName: 'products'
+        );
+
+        $this->analyticsCapabilities['products'] = true;
+
+        return $rows;
+    }
+
+
+
     /*
     |--------------------------------------------------------------------------
     | PAGINATION
@@ -608,23 +1368,13 @@ GRAPHQL;
         $results = [];
 
         $after = null;
-
-        $page = 0;
+        $seenCursors = [];
 
         do {
-            $page++;
-
-            if ($page > self::MAX_PAGES) {
-                throw new RuntimeException(
-                    'Boulevard pagination safety limit exceeded for '
-                    . $connectionName
-                    . '.'
-                );
-            }
-
             /*
-             * Every paginated query defined in this class
-             * contains an optional $after variable.
+             * `first: 100` in the GraphQL documents is the page size, not a
+             * total-record limit. Keep following the cursor until Boulevard
+             * explicitly reports hasNextPage=false.
              */
             $variables['after'] = $after;
 
@@ -716,23 +1466,23 @@ GRAPHQL;
             }
 
             /*
-             * Protect against an accidental repeated cursor,
-             * which could otherwise cause an infinite loop.
+             * Infinite-loop protection without imposing an artificial maximum
+             * number of pages. A repeated cursor means the provider response is
+             * inconsistent, so fail rather than returning partial data.
              */
-            if (
-                $hasNextPage &&
-                $nextCursor === $after
-            ) {
-                throw new RuntimeException(
-                    sprintf(
-                        'Boulevard returned the same pagination cursor twice for "%s".',
-                        $connectionName
-                    )
-                );
+            if ($hasNextPage && is_string($nextCursor)) {
+                if (isset($seenCursors[$nextCursor])) {
+                    throw new RuntimeException(
+                        sprintf(
+                            'Boulevard repeated a pagination cursor for "%s"; refusing to return partial data.',
+                            $connectionName
+                        )
+                    );
+                }
+                $seenCursors[$nextCursor] = true;
             }
 
-            $after =
-                $nextCursor;
+            $after = $nextCursor;
 
         } while (
             $hasNextPage

@@ -1,0 +1,982 @@
+.ruma-intel-page {
+    --ruma-radius-xl: 26px;
+    --ruma-radius-lg: 20px;
+    --ruma-radius-md: 16px;
+    --ruma-shadow: 0 16px 44px rgba(16, 24, 40, .07);
+    --ruma-shadow-hover: 0 20px 50px rgba(16, 24, 40, .12);
+    max-width: 1540px;
+    margin: 0 auto;
+    padding: 26px;
+}
+
+.ruma-glass-panel,
+.ruma-section,
+.ruma-compare-panel {
+    border: 1px solid var(--border, #e4e7ec);
+    background: color-mix(in srgb, var(--surface-raised, #fff) 94%, transparent);
+    box-shadow: var(--ruma-shadow);
+}
+
+.ruma-intel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 26px;
+    margin-bottom: 22px;
+    padding: 26px;
+    border-radius: var(--ruma-radius-xl);
+    overflow: hidden;
+    position: relative;
+}
+
+.ruma-intel-header:before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: linear-gradient(180deg, var(--brand-primary, #d96a77), var(--brand-accent, #7c6df2));
+}
+
+.ruma-header-copy {
+    min-width: 0;
+    max-width: 940px
+}
+
+.ruma-intel-header h1 {
+    margin: 5px 0 8px;
+    font-size: clamp(1.7rem, 2.5vw, 2.35rem);
+    line-height: 1.08;
+    letter-spacing: -.035em
+}
+
+.ruma-intel-header p {
+    margin: 0;
+    color: var(--muted, #667085);
+    line-height: 1.55
+}
+
+.ruma-eyebrow {
+    margin: 0 !important;
+    font-size: .68rem !important;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .13em;
+    color: var(--brand-primary, #d96a77) !important
+}
+
+.ruma-header-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    flex-wrap: wrap;
+    min-width: 260px
+}
+
+.ruma-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 9px 14px;
+    border: 1px solid var(--border, #d0d5dd);
+    border-radius: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: .76rem;
+    font-weight: 750;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease
+}
+
+.ruma-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(16, 24, 40, .08)
+}
+
+.ruma-btn-primary {
+    background: var(--brand-primary, #d96a77);
+    border-color: var(--brand-primary, #d96a77);
+    color: #fff
+}
+
+.ruma-btn-secondary {
+    background: var(--surface-raised, #fff);
+    color: var(--text, #101828)
+}
+
+.ruma-dataset-strip {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 17px
+}
+
+.ruma-dataset-strip span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 999px;
+    background: var(--surface-soft, #f8fafc);
+    color: var(--muted, #667085);
+    font-size: .64rem
+}
+
+.ruma-dataset-strip strong {
+    color: var(--text, #101828);
+    font-size: .68rem
+}
+
+.ruma-section {
+    padding: 25px;
+    margin-bottom: 22px;
+    border-radius: var(--ruma-radius-xl)
+}
+
+.ruma-section-title {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: start;
+    margin-bottom: 20px
+}
+
+.ruma-section-title>span:first-child {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--brand-primary, #d96a77) 10%, var(--surface-raised, #fff));
+    color: var(--text, #101828);
+    font-size: .73rem;
+    font-weight: 850
+}
+
+.ruma-section-title h2 {
+    margin: 1px 0 4px;
+    font-size: 1.08rem;
+    letter-spacing: -.018em
+}
+
+.ruma-section-title p {
+    margin: 0;
+    color: var(--muted, #667085);
+    font-size: .76rem;
+    line-height: 1.45
+}
+
+.ruma-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 13px
+}
+
+.ruma-kpi-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr))
+}
+
+.ruma-kpi-card {
+    position: relative;
+    min-width: 0;
+    min-height: 132px;
+    padding: 17px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: var(--ruma-radius-md);
+    background: linear-gradient(145deg, var(--surface-raised, #fff), color-mix(in srgb, var(--surface-soft, #f8fafc) 72%, var(--surface-raised, #fff)));
+    cursor: pointer;
+    outline: none;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease
+}
+
+.ruma-kpi-card:after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--brand-primary, #d96a77);
+    opacity: .14;
+    transition: opacity .2s ease
+}
+
+.ruma-kpi-card:hover,
+.ruma-kpi-card:focus-visible,
+.ruma-kpi-card.is-expanded {
+    transform: translateY(-3px);
+    box-shadow: var(--ruma-shadow-hover);
+    border-color: color-mix(in srgb, var(--brand-primary, #d96a77) 30%, var(--border, #e4e7ec))
+}
+
+.ruma-kpi-card:hover:after,
+.ruma-kpi-card.is-expanded:after {
+    opacity: .8
+}
+
+.ruma-kpi-card.is-unavailable {
+    opacity: .72;
+    background: var(--surface-soft, #f8fafc)
+}
+
+.ruma-kpi-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px
+}
+
+.ruma-kpi-label {
+    font-size: .72rem;
+    color: var(--muted, #667085);
+    font-weight: 650
+}
+
+.ruma-kpi-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 29px;
+    width: 29px;
+    height: 29px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--brand-primary, #d96a77) 10%, transparent);
+    color: var(--brand-primary, #d96a77);
+    font-size: .7rem;
+    font-weight: 850
+}
+
+.ruma-kpi-value {
+    margin-top: 10px;
+    color: var(--text, #101828);
+    font-size: clamp(1.35rem, 2vw, 1.8rem);
+    font-weight: 780;
+    letter-spacing: -.028em
+}
+
+.ruma-kpi-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 9px
+}
+
+.ruma-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 7px;
+    border-radius: 999px;
+    font-size: .61rem;
+    font-weight: 780;
+    white-space: nowrap
+}
+
+.ruma-delta-positive {
+    color: #176b4a;
+    background: rgba(36, 129, 93, .10)
+}
+
+.ruma-delta-negative {
+    color: #a43a45;
+    background: rgba(196, 61, 61, .10)
+}
+
+.ruma-delta-neutral {
+    color: var(--muted, #667085);
+    background: var(--surface-soft, #f2f4f7)
+}
+
+.ruma-kpi-hint {
+    font-size: .56rem;
+    color: var(--muted, #98a2b3);
+    opacity: .82
+}
+
+.ruma-kpi-details {
+    margin-top: 13px;
+    padding-top: 11px;
+    border-top: 1px dashed var(--border, #e4e7ec);
+    display: grid;
+    gap: 8px
+}
+
+.ruma-kpi-details[hidden] {
+    display: none
+}
+
+.ruma-kpi-details>div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: .61rem
+}
+
+.ruma-kpi-details span {
+    color: var(--muted, #667085)
+}
+
+.ruma-kpi-details strong {
+    text-align: right;
+    font-size: .61rem;
+    font-weight: 700;
+    overflow-wrap: anywhere
+}
+
+.ruma-chart-card {
+    margin-top: 15px;
+    padding: 18px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: var(--ruma-radius-lg);
+    background: var(--surface-raised, #fff);
+    overflow: hidden
+}
+
+.ruma-chart-card-featured {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface-raised, #fff) 96%, var(--brand-primary, #d96a77)), var(--surface-raised, #fff))
+}
+
+.ruma-chart-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px
+}
+
+.ruma-chart-heading h3 {
+    margin: 0 0 4px;
+    font-size: .86rem
+}
+
+.ruma-chart-heading p {
+    margin: 0;
+    color: var(--muted, #667085);
+    font-size: .66rem;
+    line-height: 1.45
+}
+
+.ruma-chart-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: var(--surface-soft, #f2f4f7);
+    color: var(--muted, #667085);
+    font-size: .58rem;
+    font-weight: 760;
+    white-space: nowrap
+}
+
+.ruma-chart-canvas-wrap {
+    position: relative;
+    height: 330px;
+    min-width: 0
+}
+
+.ruma-chart-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scrollbar-width: thin
+}
+
+.ruma-chart-provider-width,
+.ruma-chart-daily-width,
+.ruma-chart-provider-height {
+    position: relative
+}
+
+.ruma-table-card {
+    margin-top: 15px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: var(--ruma-radius-lg);
+    background: var(--surface-raised, #fff)
+}
+
+.ruma-table-wrap {
+    overflow: auto
+}
+
+.ruma-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .72rem
+}
+
+.ruma-table th,
+.ruma-table td {
+    text-align: left;
+    padding: 12px 13px;
+    border-bottom: 1px solid var(--border, #eaecf0);
+    white-space: nowrap
+}
+
+.ruma-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    color: var(--muted, #475467);
+    background: var(--surface-soft, #f8fafc);
+    font-size: .64rem;
+    font-weight: 780;
+    text-transform: uppercase;
+    letter-spacing: .035em
+}
+
+.ruma-table tbody tr {
+    transition: background .16s ease
+}
+
+.ruma-table tbody tr:hover {
+    background: color-mix(in srgb, var(--brand-primary, #d96a77) 4%, var(--surface-raised, #fff))
+}
+
+.ruma-table tbody tr:last-child td {
+    border-bottom: 0
+}
+
+.ruma-two-col {
+    display: grid;
+    grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+    gap: 15px
+}
+
+.ruma-insight-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 13px
+}
+
+.ruma-insight {
+    position: relative;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: var(--ruma-radius-md);
+    padding: 17px;
+    background: var(--surface-raised, #fff);
+    overflow: hidden;
+    transition: transform .18s ease, box-shadow .18s ease
+}
+
+.ruma-insight:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(16, 24, 40, .08)
+}
+
+.ruma-insight:before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: #98a2b3
+}
+
+.ruma-insight.priority-high:before {
+    background: #c43d3d
+}
+
+.ruma-insight.priority-medium:before {
+    background: #e5a44b
+}
+
+.ruma-insight.priority-low:before {
+    background: #24815d
+}
+
+.ruma-insight-meta {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    font-size: .57rem;
+    text-transform: uppercase;
+    letter-spacing: .055em;
+    color: var(--muted, #667085)
+}
+
+.ruma-insight-meta span {
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: var(--surface-soft, #f2f4f7)
+}
+
+.ruma-insight h3 {
+    font-size: .82rem;
+    margin: 11px 0 6px
+}
+
+.ruma-insight p {
+    font-size: .69rem;
+    line-height: 1.55;
+    color: var(--muted, #475467);
+    margin: 0
+}
+
+.status-pill {
+    display: inline-flex;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: .59rem;
+    font-weight: 750
+}
+
+.status-pill.ok {
+    background: rgba(36, 129, 93, .10);
+    color: #176b4a
+}
+
+.status-pill.missing {
+    background: rgba(229, 164, 75, .12);
+    color: #9b681f
+}
+
+.muted {
+    color: var(--muted, #98a2b3)
+}
+
+/* Compare with uploaded Boulevard data */
+.ruma-compare-panel {
+    margin-bottom: 22px;
+    padding: 22px;
+    border-radius: var(--ruma-radius-xl);
+    scroll-margin-top: 18px
+}
+
+.ruma-compare-panel[hidden] {
+    display: none
+}
+
+.ruma-compare-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px
+}
+
+.ruma-compare-panel h2 {
+    margin: 5px 0 5px;
+    font-size: 1.05rem
+}
+
+.ruma-compare-panel p {
+    margin: 0;
+    color: var(--muted, #667085);
+    font-size: .72rem;
+    line-height: 1.52
+}
+
+.ruma-icon-btn {
+    display: grid;
+    place-items: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 10px;
+    background: var(--surface-soft, #f8fafc);
+    color: var(--text, #101828);
+    font-size: 1.15rem;
+    cursor: pointer
+}
+
+.ruma-compare-form {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(300px, 1.2fr) auto;
+    align-items: end;
+    gap: 13px;
+    margin-top: 18px
+}
+
+.ruma-compare-form label {
+    display: grid;
+    gap: 6px
+}
+
+.ruma-compare-form label>span {
+    font-size: .63rem;
+    font-weight: 740;
+    color: var(--muted, #667085)
+}
+
+.ruma-compare-form select {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 11px;
+    border: 1px solid var(--border, #d0d5dd);
+    border-radius: 11px;
+    background: var(--surface-raised, #fff);
+    color: var(--text, #101828);
+    font: inherit;
+    font-size: .7rem
+}
+
+.ruma-compare-note {
+    padding: 10px 12px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 11px;
+    background: var(--surface-soft, #f8fafc);
+    color: var(--muted, #667085);
+    font-size: .64rem;
+    line-height: 1.5
+}
+
+.ruma-compare-note strong {
+    color: var(--text, #101828)
+}
+
+.ruma-empty-state {
+    margin-top: 16px;
+    padding: 18px;
+    border: 1px dashed var(--border, #d0d5dd);
+    border-radius: 14px;
+    background: var(--surface-soft, #f8fafc)
+}
+
+.ruma-empty-state strong {
+    display: block;
+    font-size: .76rem
+}
+
+.ruma-empty-state p {
+    margin: 6px 0 13px
+}
+
+.ruma-comparison-result {
+    scroll-margin-top: 18px
+}
+
+.ruma-verify-badge {
+    align-self: start;
+    display: inline-flex;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: .62rem;
+    font-weight: 850;
+    letter-spacing: .035em
+}
+
+.ruma-verify-badge.is-verified {
+    background: rgba(36, 129, 93, .10);
+    color: #176b4a
+}
+
+.ruma-verify-badge.is-review {
+    background: rgba(229, 164, 75, .14);
+    color: #99651d
+}
+
+.ruma-verify-badge.is-incomplete {
+    background: var(--surface-soft, #f2f4f7);
+    color: var(--muted, #667085)
+}
+
+.ruma-compare-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 15px
+}
+
+.ruma-compare-summary-grid article {
+    padding: 15px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 14px;
+    background: var(--surface-soft, #f8fafc)
+}
+
+.ruma-compare-summary-grid span {
+    display: block;
+    color: var(--muted, #667085);
+    font-size: .62rem
+}
+
+.ruma-compare-summary-grid strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 1.35rem;
+    letter-spacing: -.02em
+}
+
+.ruma-comparison-table-wrap {
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 15px
+}
+
+.ruma-comparison-table td small {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted, #667085);
+    font-size: .58rem
+}
+
+.ruma-compare-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: .58rem;
+    font-weight: 800;
+    white-space: nowrap
+}
+
+.ruma-compare-status.status-matched,
+.status-matched {
+    color: #176b4a;
+    background: rgba(36, 129, 93, .10)
+}
+
+.ruma-compare-status.status-review,
+.status-review {
+    color: #99651d;
+    background: rgba(229, 164, 75, .14)
+}
+
+.ruma-compare-status.status-api_unavailable,
+.ruma-compare-status.status-upload_unavailable,
+.ruma-compare-status.status-incomplete,
+.status-api_unavailable,
+.status-upload_unavailable {
+    color: var(--muted, #667085);
+    background: var(--surface-soft, #f2f4f7)
+}
+
+.ruma-provider-compare-list {
+    margin-top: 18px
+}
+
+.ruma-provider-compare-list>h3 {
+    margin: 0 0 10px;
+    font-size: .86rem
+}
+
+.ruma-provider-compare {
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 13px;
+    background: var(--surface-raised, #fff);
+    margin-top: 8px;
+    overflow: hidden
+}
+
+.ruma-provider-compare summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    list-style: none
+}
+
+.ruma-provider-compare summary::-webkit-details-marker {
+    display: none
+}
+
+.ruma-provider-compare-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 14px 14px
+}
+
+.ruma-provider-compare-grid>div {
+    padding: 10px;
+    border: 1px solid var(--border, #e4e7ec);
+    border-radius: 10px;
+    background: var(--surface-soft, #f8fafc)
+}
+
+.ruma-provider-compare-grid span {
+    display: block;
+    color: var(--muted, #667085);
+    font-size: .57rem
+}
+
+.ruma-provider-compare-grid strong {
+    display: block;
+    margin-top: 4px;
+    font-size: .67rem
+}
+
+.ruma-provider-compare-grid strong em {
+    color: var(--muted, #667085);
+    font-size: .53rem;
+    font-style: normal;
+    font-weight: 600
+}
+
+.ruma-provider-compare-grid small {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 3px 6px;
+    border-radius: 999px;
+    font-size: .53rem;
+    font-weight: 750
+}
+
+@media (max-width:1180px) {
+    .ruma-kpi-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+    }
+
+    .ruma-kpi-grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .ruma-insight-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .ruma-provider-compare-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+    }
+
+    .ruma-compare-form {
+        grid-template-columns: 1fr 1fr
+    }
+
+    .ruma-compare-form .ruma-btn {
+        grid-column: 1/-1;
+        justify-self: start
+    }
+}
+
+@media (max-width:850px) {
+    .ruma-intel-page {
+        padding: 16px
+    }
+
+    .ruma-intel-header {
+        flex-direction: column;
+        padding: 21px
+    }
+
+    .ruma-header-actions {
+        justify-content: flex-start;
+        min-width: 0
+    }
+
+    .ruma-section {
+        padding: 18px
+    }
+
+    .ruma-kpi-grid,
+    .ruma-kpi-grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .ruma-two-col,
+    .ruma-insight-grid {
+        grid-template-columns: 1fr
+    }
+
+    .ruma-section-title {
+        grid-template-columns: 38px minmax(0, 1fr)
+    }
+
+    .ruma-section-title>span:first-child {
+        width: 38px;
+        height: 38px
+    }
+
+    .ruma-verify-badge {
+        grid-column: 2
+    }
+
+    .ruma-compare-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .ruma-provider-compare-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+}
+
+@media (max-width:560px) {
+
+    .ruma-kpi-grid,
+    .ruma-kpi-grid-4 {
+        grid-template-columns: 1fr
+    }
+
+    .ruma-header-actions {
+        width: 100%
+    }
+
+    .ruma-header-actions .ruma-btn {
+        width: 100%
+    }
+
+    .ruma-compare-form {
+        grid-template-columns: 1fr
+    }
+
+    .ruma-compare-summary-grid,
+    .ruma-provider-compare-grid {
+        grid-template-columns: 1fr
+    }
+
+    .ruma-chart-canvas-wrap {
+        height: 280px
+    }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .ruma-intel-page * {
+        transition: none !important;
+        animation: none !important;
+        scroll-behavior: auto !important
+    }
+}
+
+@media print {
+    .no-print {
+        display: none !important
+    }
+
+    .ruma-intel-page {
+        max-width: none;
+        padding: 0
+    }
+
+    .ruma-intel-header,
+    .ruma-section {
+        box-shadow: none !important;
+        border-color: #ddd;
+        background: #fff !important
+    }
+
+    .ruma-intel-header {
+        margin-bottom: 12px;
+        padding: 18px
+    }
+
+    .ruma-section {
+        break-inside: avoid;
+        padding: 16px;
+        margin-bottom: 12px
+    }
+
+    .ruma-kpi-card,
+    .ruma-chart-card,
+    .ruma-insight,
+    .ruma-table-card {
+        break-inside: avoid;
+        box-shadow: none !important;
+        transform: none !important
+    }
+
+    .ruma-kpi-details {
+        display: none !important
+    }
+
+    .ruma-chart-scroll {
+        overflow: visible !important
+    }
+
+    body {
+        background: #fff !important
+    }
+}
