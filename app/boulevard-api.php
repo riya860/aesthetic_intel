@@ -1,58 +1,557 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Boulevard 2026-06 OAuth/Admin API gateway.
+ *
+ * Database compatibility note:
+ * - boulevard_connections.api_key_encrypted stores the OAuth Client ID.
+ * - boulevard_connections.api_secret_encrypted stores the OAuth Client Secret
+ *   exactly as copied from the Boulevard Developer Portal.
+ * - No database migration is required.
+ */
 function boulevard_api_endpoint(): string {
-    return 'https://dashboard.boulevard.io/api/2020-01/admin';
+    return 'https://dashboard.boulevard.io/api/2026-06/admin';
+}
+
+function boulevard_oauth_token_endpoint(): string {
+    return 'https://dashboard.boulevard.io/oauth2/token';
+}
+
+function boulevard_api_resource(): string {
+    return boulevard_api_endpoint();
 }
 
 function boulevard_normalize_business_id(string $value): string {
-    $value=trim($value);
-    if(str_starts_with($value,'urn:blvd:Business:'))$value=substr($value,strlen('urn:blvd:Business:'));
-    if(!preg_match('/^[a-f0-9-]{20,80}$/i',$value))throw new RuntimeException('Enter a valid Boulevard Business ID. You may paste the UUID or the full Boulevard business URN.');
+    $value = trim($value);
+
+    if (str_starts_with($value, 'urn:blvd:Business:')) {
+        $value = substr($value, strlen('urn:blvd:Business:'));
+    }
+
+    if (!preg_match('/^[a-f0-9-]{20,80}$/i', $value)) {
+        throw new RuntimeException(
+            'Enter a valid Boulevard Business UUID. You may paste the UUID or the full Boulevard business URN.'
+        );
+    }
+
     return $value;
 }
 
-function boulevard_auth_header(string $businessId,string $apiSecret,string $apiKey): string {
-    $businessId=boulevard_normalize_business_id($businessId);
-    $apiKey=trim($apiKey);$apiSecret=trim($apiSecret);
-    if($apiKey===''||$apiSecret==='')throw new RuntimeException('Boulevard API key and secret are required.');
-    $rawKey=base64_decode(strtr($apiSecret,'._-','+/='),true);
-    if($rawKey===false||$rawKey==='')throw new RuntimeException('The Boulevard API secret is not valid Base64 data.');
-    $payload='blvd-admin-v1'.$businessId.(string)time();
-    $signature=base64_encode(hash_hmac('sha256',$payload,$rawKey,true));
-    return 'Basic '.base64_encode($apiKey.':'.$signature.$payload);
+function boulevard_oauth_cache_dir(): string {
+    $base = defined('STORAGE_PATH')
+        ? rtrim((string)STORAGE_PATH, '/\\')
+        : dirname(__DIR__) . '/storage';
+
+    $dir = $base . '/boulevard-oauth';
+
+    if (!is_dir($dir) && !@mkdir($dir, 0750, true) && !is_dir($dir)) {
+        throw new RuntimeException(
+            'Aesthetic Intel could not create the Boulevard OAuth token-cache directory.'
+        );
+    }
+
+    return $dir;
 }
 
-function boulevard_graphql(string $apiKey,string $apiSecret,string $businessId,string $query,array $variables=[]): array {
-    if(!function_exists('curl_init'))throw new RuntimeException('PHP cURL is required for Boulevard API connections.');
-    $body=json_encode(['query'=>$query,'variables'=>(object)$variables],JSON_UNESCAPED_SLASHES);
-    if($body===false)throw new RuntimeException('Could not prepare the Boulevard request.');
-    $ch=curl_init(boulevard_api_endpoint());
-    curl_setopt_array($ch,[
-        CURLOPT_POST=>true,
-        CURLOPT_RETURNTRANSFER=>true,
-        CURLOPT_CONNECTTIMEOUT=>20,
-        CURLOPT_TIMEOUT=>90,
-        CURLOPT_HTTPHEADER=>[
-            'Authorization: '.boulevard_auth_header($businessId,$apiSecret,$apiKey),
-            'Content-Type: application/json',
+function boulevard_oauth_cache_file(
+    string $clientId,
+    string $businessId
+): string {
+    return boulevard_oauth_cache_dir()
+        . '/token-'
+        . hash('sha256', trim($clientId) . '|' . boulevard_normalize_business_id($businessId) . '|' . boulevard_api_resource())
+        . '.json';
+}
+
+function boulevard_oauth_read_cached_token(
+    string $clientId,
+    string $businessId
+): ?array {
+    $file = boulevard_oauth_cache_file($clientId, $businessId);
+
+    if (!is_file($file)) {
+        return null;
+    }
+
+    $raw = @file_get_contents($file);
+    if (!is_string($raw) || trim($raw) === '') {
+        return null;
+    }
+
+    $json = json_decode($raw, true);
+    if (!is_array($json)) {
+        return null;
+    }
+
+    $token = trim((string)($json['access_token'] ?? ''));
+    $expiresAt = (int)($json['expires_at'] ?? 0);
+
+    /* Keep a five-minute safety window so long GraphQL/report requests never
+     * start with a token that is about to expire. */
+    if ($token === '' || $expiresAt <= (time() + 300)) {
+        return null;
+    }
+
+    return $json;
+}
+
+function boulevard_oauth_write_cached_token(
+    string $clientId,
+    string $businessId,
+    array $token
+): void {
+    $file = boulevard_oauth_cache_file($clientId, $businessId);
+    $json = json_encode($token, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+
+    if ($json === false) {
+        return;
+    }
+
+    $tmp = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
+    if (@file_put_contents($tmp, $json, LOCK_EX) === false) {
+        return;
+    }
+
+    @chmod($tmp, 0640);
+    @rename($tmp, $file);
+}
+
+function boulevard_oauth_clear_cached_token(
+    string $clientId,
+    string $businessId
+): void {
+    try {
+        $file = boulevard_oauth_cache_file($clientId, $businessId);
+        if (is_file($file)) {
+            @unlink($file);
+        }
+    } catch (Throwable) {
+        /* Cache cleanup must never hide the real API error. */
+    }
+}
+
+function boulevard_oauth_jwt_claims(string $jwt): array {
+    $parts = explode('.', $jwt);
+    if (count($parts) < 2) {
+        return [];
+    }
+
+    $payload = strtr($parts[1], '-_', '+/');
+    $padding = strlen($payload) % 4;
+    if ($padding > 0) {
+        $payload .= str_repeat('=', 4 - $padding);
+    }
+
+    $decoded = base64_decode($payload, true);
+    if (!is_string($decoded)) {
+        return [];
+    }
+
+    $claims = json_decode($decoded, true);
+    return is_array($claims) ? $claims : [];
+}
+
+function boulevard_oauth_error_message(int $status, array $json): string {
+    $error = strtolower(trim((string)($json['error'] ?? '')));
+    $description = trim((string)(
+        $json['error_description']
+        ?? $json['message']
+        ?? ''
+    ));
+
+    return match ($error) {
+        'invalid_client' =>
+            'Boulevard rejected the OAuth Client ID or Client Secret. '
+            . 'Paste the Client ID and Client Secret from the same published 2026-06 Boulevard app. '
+            . 'The Client Secret must be saved exactly as Boulevard displays it; do not Base64-encode it again.'
+            . ($description !== '' ? ' Boulevard response: ' . $description : ''),
+        'invalid_grant' =>
+            'Boulevard authenticated the OAuth app but it is not authorized for the configured RUMA business. '
+            . 'Install/authorize the published app for that RUMA Boulevard Business UUID.'
+            . ($description !== '' ? ' Boulevard response: ' . $description : ''),
+        'invalid_target' =>
+            'Boulevard rejected the OAuth resource. Aesthetic Intel is configured for '
+            . boulevard_api_resource()
+            . '. Confirm that the credentials belong to a production 2026-06 Admin API app.'
+            . ($description !== '' ? ' Boulevard response: ' . $description : ''),
+        'invalid_scope' =>
+            'Boulevard rejected one or more OAuth scopes. Publish/install an app manifest containing the required RUMA read/report scopes.'
+            . ($description !== '' ? ' Boulevard response: ' . $description : ''),
+        'invalid_request' =>
+            'Boulevard rejected the OAuth token request. Verify the RUMA Business UUID and the app installation.'
+            . ($description !== '' ? ' Boulevard response: ' . $description : ''),
+        default =>
+            'Boulevard OAuth token request failed (HTTP ' . $status . ')'
+            . ($description !== '' ? ': ' . $description : ($error !== '' ? ': ' . $error : '.')),
+    };
+}
+
+/**
+ * Mint (or reuse) a Boulevard 2026-06 Admin API bearer token.
+ *
+ * IMPORTANT: the Client Secret copied from the Boulevard Developer Portal is
+ * sent exactly as entered. Boulevard displays the Base64 text representation
+ * that the OAuth token endpoint expects. Do not Base64-encode it again here.
+ */
+function boulevard_oauth_access_token(
+    string $clientId,
+    string $clientSecret,
+    string $businessId,
+    bool $forceFresh = false
+): array {
+    if (!function_exists('curl_init')) {
+        throw new RuntimeException(
+            'PHP cURL is required for Boulevard API connections.'
+        );
+    }
+
+    $clientId = trim($clientId);
+    $clientSecret = trim($clientSecret);
+    $businessId = boulevard_normalize_business_id($businessId);
+
+    if ($clientId === '' || $clientSecret === '') {
+        throw new RuntimeException(
+            'Boulevard OAuth Client ID and Client Secret are required.'
+        );
+    }
+
+    if (!$forceFresh) {
+        $cached = boulevard_oauth_read_cached_token($clientId, $businessId);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    } else {
+        boulevard_oauth_clear_cached_token($clientId, $businessId);
+    }
+
+    $form = http_build_query(
+        [
+            'grant_type' => 'client_credentials',
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'business_id' => $businessId,
+            'resource' => boulevard_api_resource(),
+        ],
+        '',
+        '&',
+        PHP_QUERY_RFC3986
+    );
+
+    $ch = curl_init(boulevard_oauth_token_endpoint());
+    if ($ch === false) {
+        throw new RuntimeException(
+            'Could not initialize the Boulevard OAuth connection.'
+        );
+    }
+
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 20,
+        CURLOPT_TIMEOUT => 45,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/x-www-form-urlencoded',
             'Accept: application/json',
         ],
-        CURLOPT_POSTFIELDS=>$body,
+        CURLOPT_POSTFIELDS => $form,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
     ]);
-    $response=curl_exec($ch);$error=curl_error($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
-    if($response===false)throw new RuntimeException('Boulevard connection failed: '.$error);
-    $json=json_decode($response,true);
-    if(!is_array($json))throw new RuntimeException('Boulevard returned an unreadable response (HTTP '.$status.').');
-    if($status<200||$status>=300){
-        $message=(string)($json['message']??$json['error']??('Boulevard returned HTTP '.$status));
-        throw new RuntimeException($message);
+
+    $response = curl_exec($ch);
+    $curlError = curl_error($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($response === false) {
+        throw new RuntimeException(
+            'Boulevard OAuth connection failed: ' . $curlError
+        );
     }
-    if(!empty($json['errors'])){
-        $messages=[];foreach($json['errors'] as $item)$messages[]=(string)($item['message']??'Unknown GraphQL error');
-        throw new RuntimeException('Boulevard API: '.implode(' | ',$messages));
+
+    $json = json_decode((string)$response, true);
+    if (!is_array($json)) {
+        throw new RuntimeException(
+            'Boulevard OAuth returned an unreadable response (HTTP ' . $status . ').'
+        );
     }
-    return is_array($json['data']??null)?$json['data']:[];
+
+    if ($status < 200 || $status >= 300) {
+        throw new RuntimeException(
+            boulevard_oauth_error_message($status, $json)
+        );
+    }
+
+    $accessToken = trim((string)($json['access_token'] ?? ''));
+    if ($accessToken === '') {
+        throw new RuntimeException(
+            'Boulevard OAuth succeeded but did not return an access_token.'
+        );
+    }
+
+    $claims = boulevard_oauth_jwt_claims($accessToken);
+    $expiresAt = 0;
+
+    if (is_numeric($claims['exp'] ?? null)) {
+        $expiresAt = (int)$claims['exp'];
+    } elseif (is_numeric($json['expires_in'] ?? null)) {
+        $expiresAt = time() + max(60, (int)$json['expires_in']);
+    } else {
+        $expiresAt = time() + 3600;
+    }
+
+    /* This is a non-security sanity check only. Boulevard validates its own
+     * token; Aesthetic Intel merely uses the decoded claims to catch obvious
+     * resource/configuration mistakes early. */
+    $aud = $json['aud'] ?? ($claims['aud'] ?? null);
+    $audiences = is_array($aud) ? $aud : ($aud !== null ? [(string)$aud] : []);
+    if ($audiences && !in_array(boulevard_api_resource(), $audiences, true)) {
+        throw new RuntimeException(
+            'Boulevard issued a token for a different API resource. Expected '
+            . boulevard_api_resource()
+            . '.'
+        );
+    }
+
+    $token = [
+        'access_token' => $accessToken,
+        'token_type' => (string)($json['token_type'] ?? 'Bearer'),
+        'expires_at' => $expiresAt,
+        'scope' => $json['scope'] ?? ($claims['scope'] ?? null),
+        'aud' => $aud,
+        'business_id' => $businessId,
+        'cached_at' => time(),
+    ];
+
+    boulevard_oauth_write_cached_token($clientId, $businessId, $token);
+
+    return $token;
+}
+
+function boulevard_auth_header(
+    string $businessId,
+    string $apiSecret,
+    string $apiKey,
+    ?int $unusedTimestamp = null
+): string {
+    $token = boulevard_oauth_access_token(
+        $apiKey,
+        $apiSecret,
+        $businessId,
+        false
+    );
+
+    return 'Bearer ' . (string)$token['access_token'];
+}
+
+function boulevard_graphql_error_message(array $errors): string {
+    $messages = [];
+
+    foreach ($errors as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+
+        $message = trim((string)($item['message'] ?? 'Unknown GraphQL error'));
+        $extensions = is_array($item['extensions'] ?? null)
+            ? $item['extensions']
+            : [];
+        $code = strtoupper(trim((string)($extensions['code'] ?? '')));
+
+        if ($code === 'MISSING_REQUIRED_SCOPE') {
+            $scope = trim((string)(
+                $extensions['requiredScope']
+                ?? $extensions['required_scope']
+                ?? $extensions['scope']
+                ?? ''
+            ));
+
+            $message = 'Boulevard app permission is missing'
+                . ($scope !== '' ? ' the `' . $scope . '` scope' : ' a required scope')
+                . '. Add it to manifest.json, publish a new app version, and update/reinstall the app for RUMA.'
+                . ($message !== '' ? ' Boulevard response: ' . $message : '');
+        } elseif ($code === 'QUERY_TOO_LARGE' || str_contains(strtolower($message), 'query too large')) {
+            $message = 'Boulevard rejected a GraphQL query because its calculated cost is too large. '
+                . 'Reduce the date range/page size or simplify the requested fields. Boulevard response: '
+                . $message;
+        }
+
+        if ($code !== '' && $code !== 'MISSING_REQUIRED_SCOPE') {
+            $message .= ' [' . $code . ']';
+        }
+
+        $messages[] = $message;
+    }
+
+    return $messages
+        ? implode(' | ', array_values(array_unique($messages)))
+        : 'Unknown Boulevard GraphQL error.';
+}
+
+function boulevard_graphql(
+    string $apiKey,
+    string $apiSecret,
+    string $businessId,
+    string $query,
+    array $variables = []
+): array {
+    if (!function_exists('curl_init')) {
+        throw new RuntimeException(
+            'PHP cURL is required for Boulevard API connections.'
+        );
+    }
+
+    $businessId = boulevard_normalize_business_id($businessId);
+
+    $body = json_encode(
+        [
+            'query' => $query,
+            'variables' => (object)$variables,
+        ],
+        JSON_UNESCAPED_SLASHES
+    );
+
+    if ($body === false) {
+        throw new RuntimeException(
+            'Could not prepare the Boulevard GraphQL request.'
+        );
+    }
+
+    $maxAttempts = 2;
+
+    for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+        $forceFresh = $attempt > 1;
+        $token = boulevard_oauth_access_token(
+            $apiKey,
+            $apiSecret,
+            $businessId,
+            $forceFresh
+        );
+
+        $responseHeaders = [];
+        $headers = [
+            'Authorization: Bearer ' . (string)$token['access_token'],
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ];
+
+        if ((string)getenv('BOULEVARD_DEBUG_COST') === '1') {
+            $headers[] = 'x-blvd-debug-cost: totals';
+        }
+
+        $ch = curl_init(boulevard_api_endpoint());
+        if ($ch === false) {
+            throw new RuntimeException(
+                'Could not initialize the Boulevard Admin API connection.'
+            );
+        }
+
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 20,
+            CURLOPT_TIMEOUT => 90,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HEADERFUNCTION => static function ($curl, string $header) use (&$responseHeaders): int {
+                $length = strlen($header);
+                $parts = explode(':', $header, 2);
+                if (count($parts) === 2) {
+                    $responseHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
+                }
+                return $length;
+            },
+        ]);
+
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false) {
+            if ($attempt < $maxAttempts) {
+                error_log('[Boulevard 2026-06] Network error; retrying once: ' . $curlError);
+                usleep(400000);
+                continue;
+            }
+
+            throw new RuntimeException(
+                'Boulevard Admin API connection failed: ' . $curlError
+            );
+        }
+
+        $json = json_decode((string)$response, true);
+        if (!is_array($json)) {
+            throw new RuntimeException(
+                'Boulevard returned an unreadable Admin API response (HTTP ' . $status . ').'
+            );
+        }
+
+        if ($status === 401) {
+            boulevard_oauth_clear_cached_token($apiKey, $businessId);
+
+            if ($attempt < $maxAttempts) {
+                error_log('[Boulevard 2026-06] Access token rejected; minting one fresh token and retrying once.');
+                continue;
+            }
+
+            $message = trim((string)(
+                $json['message']
+                ?? $json['error_description']
+                ?? $json['error']
+                ?? 'Unauthorized'
+            ));
+
+            throw new RuntimeException(
+                'Boulevard rejected the OAuth access token (HTTP 401): ' . $message
+            );
+        }
+
+        if ($status === 429) {
+            $retryAfter = trim((string)($responseHeaders['retry-after'] ?? ''));
+            throw new RuntimeException(
+                'Boulevard rate limit reached (HTTP 429).'
+                . ($retryAfter !== '' ? ' Retry after ' . $retryAfter . ' second(s).' : '')
+                . ' Reduce the selected period/page cost or retry after the Boulevard limit resets.'
+            );
+        }
+
+        if ($status >= 500 && $status <= 599 && $attempt < $maxAttempts) {
+            error_log('[Boulevard 2026-06] HTTP ' . $status . '; retrying once.');
+            usleep(500000);
+            continue;
+        }
+
+        if ($status < 200 || $status >= 300) {
+            $message = trim((string)(
+                $json['message']
+                ?? $json['error_description']
+                ?? $json['error']
+                ?? ('Boulevard returned HTTP ' . $status)
+            ));
+
+            throw new RuntimeException(
+                'Boulevard Admin API request failed (HTTP ' . $status . '): ' . $message
+            );
+        }
+
+        if (!empty($json['errors']) && is_array($json['errors'])) {
+            throw new RuntimeException(
+                'Boulevard API: ' . boulevard_graphql_error_message($json['errors'])
+            );
+        }
+
+        return is_array($json['data'] ?? null)
+            ? $json['data']
+            : [];
+    }
+
+    throw new RuntimeException(
+        'Boulevard request could not be completed.'
+    );
 }
 
 function boulevard_connection(int $businessId): array {
@@ -65,7 +564,7 @@ function boulevard_connection_credentials(int $businessId): array {
     $apiKey=ai_decrypt_secret($row['api_key_encrypted']??null);
     $apiSecret=ai_decrypt_secret($row['api_secret_encrypted']??null);
     $businessIdValue=(string)($row['boulevard_business_id']??'');
-    if(!$apiKey||!$apiSecret||$businessIdValue==='')throw new RuntimeException('Boulevard API credentials are not configured for this business.');
+    if(!$apiKey||!$apiSecret||$businessIdValue==='')throw new RuntimeException('Boulevard OAuth Client ID, Client Secret, and Business UUID are not configured for this business.');
     return [$apiKey,$apiSecret,$businessIdValue,$row];
 }
 
@@ -76,11 +575,25 @@ function boulevard_masked_secret(?string $encrypted,string $empty='Not configure
 }
 
 function boulevard_test_connection_values(string $apiKey,string $apiSecret,string $businessId): array {
-    $query='query AestheticIntelBoulevardConnection { business { id name tz } }';
-    $data=boulevard_graphql($apiKey,$apiSecret,$businessId,$query);
+    $normalizedBusinessId = boulevard_normalize_business_id($businessId);
+    $query='query AestheticIntelBoulevardConnection { business { id name tz } permissions }';
+    $data=boulevard_graphql($apiKey,$apiSecret,$normalizedBusinessId,$query);
     $business=$data['business']??null;
-    if(!is_array($business)||empty($business['id']))throw new RuntimeException('Boulevard connected, but no business details were returned.');
-    return ['id'=>(string)$business['id'],'name'=>(string)($business['name']??'Boulevard Business'),'timezone'=>(string)($business['tz']??'')];
+    if(!is_array($business)||empty($business['id']))throw new RuntimeException('Boulevard OAuth connected, but no business details were returned.');
+
+    $returnedBusinessId = boulevard_normalize_business_id((string)$business['id']);
+    if (!hash_equals(strtolower($normalizedBusinessId), strtolower($returnedBusinessId))) {
+        throw new RuntimeException(
+            'Boulevard OAuth connected to a different business than the configured RUMA Business UUID.'
+        );
+    }
+
+    return [
+        'id'=>(string)$business['id'],
+        'name'=>(string)($business['name']??'Boulevard Business'),
+        'timezone'=>(string)($business['tz']??''),
+        'permissions'=>is_array($data['permissions']??null)?$data['permissions']:[],
+    ];
 }
 
 function boulevard_fetch_reports_values(string $apiKey,string $apiSecret,string $businessId): array {
@@ -1012,7 +1525,7 @@ function boulevard_webhook_verify(string $rawBody,string $salt,string $received,
     if($rawBody===''||$salt===''||$received==='')return false;$parts=explode(':',$salt);$timestamp=(int)end($parts);if($timestamp<1||abs(time()-$timestamp)>900)return false;$secret=ai_decrypt_secret($encryptedSecret);if(!$secret)return false;$rawSecret=base64_decode(strtr($secret,'._-','+/='),true);if($rawSecret===false||$rawSecret==='')return false;$expected=base64_encode(hash_hmac('sha256',$salt.':'.$rawBody,$rawSecret,true));return hash_equals($expected,$received);
 }
 function boulevard_handle_report_export_webhook(string $rawBody,array $headers): array {
-    $payload=json_decode($rawBody,true);if(!is_array($payload))throw new RuntimeException('Invalid Boulevard webhook JSON.');$businessUrn=(string)($payload['businessId']??'');$businessUuid=boulevard_normalize_business_id($businessUrn);$stmt=db()->prepare('SELECT * FROM boulevard_connections WHERE boulevard_business_id=? LIMIT 1');$stmt->execute([$businessUuid]);$connection=$stmt->fetch();if(!$connection)throw new RuntimeException('Unknown Boulevard business.');$salt=(string)($headers['x-blvd-hmac-salt']??'');$signature=(string)($headers['x-blvd-hmac-sha256']??'');if(!boulevard_webhook_verify($rawBody,$salt,$signature,(string)$connection['api_secret_encrypted']))throw new RuntimeException('Boulevard webhook signature verification failed.');
+    $payload=json_decode($rawBody,true);if(!is_array($payload))throw new RuntimeException('Invalid Boulevard webhook JSON.');$businessUrn=(string)($payload['businessId']??'');$businessUuid=boulevard_normalize_business_id($businessUrn);$stmt=db()->prepare('SELECT * FROM boulevard_connections WHERE boulevard_business_id=? LIMIT 1');$stmt->execute([$businessUuid]);$connection=$stmt->fetch();if(!$connection)throw new RuntimeException('Unknown Boulevard business.');$salt=(string)($headers['x-blvd-oauth-hmac-salt']??$headers['x-blvd-hmac-salt']??'');$signature=(string)($headers['x-blvd-oauth-hmac-sha256']??$headers['x-blvd-hmac-sha256']??'');if(!boulevard_webhook_verify($rawBody,$salt,$signature,(string)$connection['api_secret_encrypted']))throw new RuntimeException('Boulevard webhook signature verification failed.');
     $idempotency=(string)($payload['idempotencyKey']??hash('sha256',$rawBody));$eventType=(string)($payload['eventType']??'');$data=$payload['data']['node']??[];$pdo=db();
     $pdo->beginTransaction();
     try{

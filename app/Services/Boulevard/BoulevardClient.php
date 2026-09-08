@@ -7,7 +7,7 @@ require_once __DIR__ . '/BoulevardAuth.php';
 /**
  * BoulevardClient
  *
- * Handles communication with Boulevard's legacy Admin API.
+ * Handles communication with Boulevard's 2026-06 Admin API.
  *
  * Responsibilities:
  *
@@ -30,13 +30,13 @@ require_once __DIR__ . '/BoulevardAuth.php';
 final class BoulevardClient
 {
     /**
-     * Boulevard legacy Admin API endpoint.
+     * Boulevard 2026-06 Admin API endpoint.
      *
      * This is Boulevard's endpoint.
      * It is NOT an endpoint created by Aesthetic Intel.
      */
     private const ENDPOINT =
-        'https://dashboard.boulevard.io/api/2020-01/admin';
+        'https://dashboard.boulevard.io/api/2026-06/admin';
 
 
     /**
@@ -61,15 +61,28 @@ final class BoulevardClient
     /**
      * Boulevard configuration.
      *
-     * Expected:
+     * Expected (legacy aliases remain accepted by BoulevardAuth):
      *
      * [
-     *     'api_key'     => '...',
-     *     'secret_key'  => '...',
-     *     'business_id' => '...'
+     *     'client_id'     => '...',
+     *     'client_secret' => '...',
+     *     'business_id'   => '...'
      * ]
      */
     private array $config;
+
+
+    /**
+     * Last request start time for this PHP process.
+     * Retained as lightweight process-local pacing for diagnostics.
+     */
+    private static float $lastRequestStartedAt = 0.0;
+
+
+    /**
+     * Minimum diagnostic request spacing to reduce bursts.
+     */
+    private const MIN_REQUEST_INTERVAL_SECONDS = 0.10;
 
 
     /**
@@ -90,8 +103,8 @@ final class BoulevardClient
      * This method controls retry behavior.
      *
      * IMPORTANT:
-     * execute() creates a NEW Boulevard auth token
-     * for every attempt.
+     * execute() reuses a valid OAuth access token and forces one fresh token
+     * after an HTTP 401.
      */
     public function query(
         string $query,
@@ -103,129 +116,107 @@ final class BoulevardClient
             );
         }
 
-        for (
-            $attempt = 1;
-            $attempt <= self::MAX_ATTEMPTS;
-            $attempt++
-        ) {
+        $authAttempt = 0;
+        $temporaryAttempt = 0;
 
+        while (true) {
             try {
+                /*
+                 * Boulevard legacy tokens are timestamped only to the second.
+                 * Pace requests so back-to-back pages do not hammer the legacy
+                 * endpoint with a burst of identical-second signed credentials.
+                 * This also reduces calculated-query-cost bursts.
+                 */
+                self::paceRequest();
 
                 return $this->execute(
                     $query,
-                    $variables
+                    $variables,
+                    $authAttempt > 0
                 );
 
-            } catch (
-                BoulevardAuthenticationException $e
-            ) {
+            } catch (BoulevardAuthenticationException $e) {
+                $authAttempt++;
 
-                /*
-                 * Your local testing showed that Boulevard's
-                 * legacy authentication can intermittently
-                 * return HTTP 401 even for an otherwise valid
-                 * RUMA business query.
-                 *
-                 * Retry using a completely new signed token.
-                 */
-                if (
-                    $attempt >= self::MAX_ATTEMPTS
-                ) {
-                    throw $e;
-                }
-
-                $this->logRetry(
-                    type: 'authentication',
-                    attempt: $attempt,
-                    waitSeconds: $attempt * 2
+                error_log(
+                    '[Boulevard Authentication] '
+                    . $e->getMessage()
                 );
 
                 /*
-                 * Attempt 1 failure → wait 2 sec
-                 * Attempt 2 failure → wait 4 sec
+                 * The project has previously observed transient 401 responses
+                 * from the legacy endpoint. Allow two fresh-token retries, but
+                 * never allow an unlimited retry cascade.
                  */
-                sleep(
-                    $attempt * 2
-                );
-
-            } catch (
-                BoulevardRateLimitException $e
-            ) {
-
-                if (
-                    $attempt >= self::MAX_ATTEMPTS
-                ) {
+                if ($authAttempt >= 2) {
                     throw $e;
                 }
 
-                $waitSeconds =
-                    $attempt * 3;
+                error_log(
+                    sprintf(
+                        '[Boulevard] Retrying authentication failure. Attempt %d/%d.',
+                        $authAttempt,
+                        self::MAX_ATTEMPTS
+                    )
+                );
+
+                continue;
+
+            } catch (BoulevardRateLimitException $e) {
+                $temporaryAttempt++;
+
+                if ($temporaryAttempt >= self::MAX_ATTEMPTS) {
+                    throw $e;
+                }
+
+                $waitSeconds = min(5, max(1, $temporaryAttempt * 2));
 
                 $this->logRetry(
                     type: 'rate-limit',
-                    attempt: $attempt,
+                    attempt: $temporaryAttempt,
                     waitSeconds: $waitSeconds
                 );
 
-                sleep(
-                    $waitSeconds
-                );
+                sleep($waitSeconds);
+                continue;
 
-            } catch (
-                BoulevardServerException $e
-            ) {
+            } catch (BoulevardServerException $e) {
+                $temporaryAttempt++;
 
-                if (
-                    $attempt >= self::MAX_ATTEMPTS
-                ) {
+                if ($temporaryAttempt >= self::MAX_ATTEMPTS) {
                     throw $e;
                 }
 
-                $waitSeconds =
-                    $attempt * 2;
+                $waitSeconds = min(4, max(1, $temporaryAttempt));
 
                 $this->logRetry(
                     type: 'server',
-                    attempt: $attempt,
+                    attempt: $temporaryAttempt,
                     waitSeconds: $waitSeconds
                 );
 
-                sleep(
-                    $waitSeconds
-                );
+                sleep($waitSeconds);
+                continue;
 
-            } catch (
-                BoulevardNetworkException $e
-            ) {
+            } catch (BoulevardNetworkException $e) {
+                $temporaryAttempt++;
 
-                if (
-                    $attempt >= self::MAX_ATTEMPTS
-                ) {
+                if ($temporaryAttempt >= self::MAX_ATTEMPTS) {
                     throw $e;
                 }
 
-                $waitSeconds =
-                    $attempt * 2;
+                $waitSeconds = min(4, max(1, $temporaryAttempt));
 
                 $this->logRetry(
                     type: 'network',
-                    attempt: $attempt,
+                    attempt: $temporaryAttempt,
                     waitSeconds: $waitSeconds
                 );
 
-                sleep(
-                    $waitSeconds
-                );
+                sleep($waitSeconds);
+                continue;
             }
         }
-
-        /*
-         * This should never normally execute because the
-         * loop either returns successfully or throws.
-         */
-        throw new RuntimeException(
-            'Boulevard request could not be completed.'
-        );
     }
 
 
@@ -244,7 +235,8 @@ final class BoulevardClient
      */
     private function execute(
         string $query,
-        array $variables
+        array $variables,
+        bool $forceFreshToken = false
     ): array {
 
         /*
@@ -253,7 +245,8 @@ final class BoulevardClient
          */
         $authorization =
             BoulevardAuth::authorizationHeader(
-                $this->config
+                $this->config,
+                $forceFreshToken
             );
 
 
@@ -410,13 +403,14 @@ final class BoulevardClient
          * Authentication failure.
          *
          * query() will retry this with a freshly
-         * generated signed Boulevard token.
+         * minted Boulevard OAuth access token.
          */
         if ($status === 401) {
 
+            BoulevardAuth::clearToken($this->config);
+
             throw new BoulevardAuthenticationException(
-                'Boulevard authentication failed. '
-                . 'HTTP 401. Response: '
+                'Boulevard OAuth access token was rejected. ' . 'HTTP 401. Response: '
                 . self::safeResponsePreview(
                     $response
                 )
@@ -592,35 +586,43 @@ final class BoulevardClient
 
 
     /**
+     * Pace diagnostic requests to the Boulevard Admin API.
+     *
+     * This is intentionally process-local and lightweight. It does not limit
+     * the total number of cursor pages; it only spaces HTTP calls.
+     */
+    private static function paceRequest(): void
+    {
+        $now = microtime(true);
+
+        if (self::$lastRequestStartedAt > 0.0) {
+            $elapsed = $now - self::$lastRequestStartedAt;
+            $remaining = self::MIN_REQUEST_INTERVAL_SECONDS - $elapsed;
+
+            if ($remaining > 0) {
+                usleep((int) ceil($remaining * 1000000));
+            }
+        }
+
+        self::$lastRequestStartedAt = microtime(true);
+    }
+
+
+    /**
      * Validate required Boulevard configuration.
      */
     private function validateConfig(
         array $config
     ): void {
 
-        $required = [
-            'api_key',
-            'secret_key',
-            'business_id',
-        ];
+        $clientId = trim((string)($config['client_id'] ?? $config['api_key'] ?? ''));
+        $clientSecret = trim((string)($config['client_secret'] ?? $config['secret_key'] ?? ''));
+        $businessId = trim((string)($config['business_id'] ?? ''));
 
-
-        foreach ($required as $key) {
-
-            if (
-                !isset($config[$key]) ||
-                trim(
-                    (string) $config[$key]
-                ) === ''
-            ) {
-
-                throw new InvalidArgumentException(
-                    sprintf(
-                        'Boulevard configuration value "%s" is missing.',
-                        $key
-                    )
-                );
-            }
+        if ($clientId === '' || $clientSecret === '' || $businessId === '') {
+            throw new InvalidArgumentException(
+                'Boulevard OAuth client_id, client_secret, and business_id are required.'
+            );
         }
     }
 

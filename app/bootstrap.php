@@ -281,6 +281,46 @@ require_once
     APP_PATH
     . '/boulevard-api.php';
 
+
+/*
+ * Boulevard 2026-06 OAuth / RUMA services
+ *
+ * app/boulevard-api.php remains the single shared OAuth + GraphQL transport.
+ * The classes below contain no embedded credentials; they consume the
+ * encrypted boulevard_connections record through the existing gateway.
+ */
+require_once
+    APP_PATH
+    . '/Services/Boulevard/BoulevardAuth.php';
+
+require_once
+    APP_PATH
+    . '/Services/Boulevard/BoulevardClient.php';
+
+require_once
+    APP_PATH
+    . '/Services/RumaBoulevardAnalytics.php';
+
+require_once
+    APP_PATH
+    . '/Services/RumaBoulevardUploadComparison.php';
+
+require_once
+    APP_PATH
+    . '/Services/RumaBoulevardCanonicalReport.php';
+
+require_once
+    APP_PATH
+    . '/Services/RumaBoulevardReportComparisonV2.php';
+
+require_once
+    APP_PATH
+    . '/Services/RumaBoulevardV2Orchestrator.php';
+
+require_once
+    APP_PATH
+    . '/Services/RumaBoulevardUnifiedLiveConsole.php';
+
 require_once
     APP_PATH
     . '/ai-extraction.php';
@@ -325,7 +365,7 @@ require_once
     APP_PATH
     . '/ai-report-review.php';
 
-    require_once APP_PATH . '/openai-weekly.php';
+require_once APP_PATH . '/openai-weekly.php';
 require_once APP_PATH . '/ai-weekly-report.php';
 require_once
     APP_PATH
