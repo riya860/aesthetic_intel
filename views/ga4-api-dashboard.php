@@ -40,7 +40,7 @@ if (!function_exists('ga4dash_label')) {
             'keyEvents' => 'Key events',
             'totalRevenue' => 'Total revenue',
             'userEngagementDuration' => 'Engagement duration',
-            'eventCountPerActiveUser' => 'Events / active user',
+            'eventCountPerUser' => 'Events / active user',
             'itemsViewed' => 'Items viewed',
             'itemsAddedToCart' => 'Added to cart',
             'itemsPurchased' => 'Items purchased',

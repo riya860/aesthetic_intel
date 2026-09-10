@@ -269,7 +269,7 @@ if (!function_exists('ga4dash_report_definitions')) {
                 'metrics' => [
                     'eventCount',
                     'activeUsers',
-                    'eventCountPerActiveUser',
+                    'eventCountPerUser',
                     'keyEvents',
                 ],
                 'limit' => 250,
