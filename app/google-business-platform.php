@@ -786,31 +786,135 @@ function googlehub_oauth_scopes(string $service): array
     };
 }
 
-function googlehub_oauth_start(string $service, int $businessId, int $userId): string
+function googlehub_oauth_start(
+    string $service,
+    int $businessId,
+    int $userId,
+    ?string $preferredGoogleEmail = null,
+    bool $enforcePreferredGoogleEmail = false
+): string
 {
     googlehub_assert_configured();
-    googlehub_oauth_scopes($service); // validates service
+    googlehub_oauth_scopes($service);
+
+    $preferredGoogleEmail = strtolower(
+        trim((string)$preferredGoogleEmail)
+    );
+
+    if (
+        $preferredGoogleEmail !== ''
+        && !filter_var(
+            $preferredGoogleEmail,
+            FILTER_VALIDATE_EMAIL
+        )
+    ) {
+        throw new RuntimeException(
+            'The preferred Google account email is invalid.'
+        );
+    }
 
     $state = bin2hex(random_bytes(24));
+
     $_SESSION['_google_oauth_states'][$state] = [
         'service' => $service,
         'business_id' => $businessId,
         'user_id' => $userId,
+        'preferred_google_email' => $preferredGoogleEmail,
+        'enforce_preferred_google_email' => $enforcePreferredGoogleEmail,
         'created_at' => time(),
     ];
 
     $params = [
         'client_id' => googlehub_oauth_client_id(),
-        'redirect_uri' => googlehub_absolute_url('google-oauth-callback'),
+        'redirect_uri' => googlehub_absolute_url(
+            'google-oauth-callback'
+        ),
         'response_type' => 'code',
-        'scope' => implode(' ', googlehub_oauth_scopes($service)),
+        'scope' => implode(
+            ' ',
+            googlehub_oauth_scopes($service)
+        ),
         'access_type' => 'offline',
         'include_granted_scopes' => 'true',
-        'prompt' => 'consent select_account',
+        'prompt' => $preferredGoogleEmail !== ''
+            ? 'consent'
+            : 'consent select_account',
         'state' => $state,
     ];
 
-    return 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    if ($preferredGoogleEmail !== '') {
+        $params['login_hint'] = $preferredGoogleEmail;
+    }
+
+    return
+        'https://accounts.google.com/o/oauth2/v2/auth?'
+        . http_build_query(
+            $params,
+            '',
+            '&',
+            PHP_QUERY_RFC3986
+        );
+}
+
+function googlehub_ga4_google_email(
+    int $businessId
+): ?string
+{
+    $ga4 = googlehub_connection(
+        $businessId,
+        'ga4'
+    );
+
+    if (
+        !$ga4
+        || (string)($ga4['status'] ?? '')
+            !== 'connected'
+    ) {
+        return null;
+    }
+
+    $email = strtolower(
+        trim(
+            (string)($ga4['google_email'] ?? '')
+        )
+    );
+
+    return filter_var(
+        $email,
+        FILTER_VALIDATE_EMAIL
+    )
+        ? $email
+        : null;
+}
+
+function googlehub_same_google_account(
+    ?array $ga4,
+    ?array $gbp
+): bool
+{
+    if (!$ga4 || !$gbp) {
+        return false;
+    }
+
+    $ga4Email = strtolower(
+        trim(
+            (string)($ga4['google_email'] ?? '')
+        )
+    );
+
+    $gbpEmail = strtolower(
+        trim(
+            (string)($gbp['google_email'] ?? '')
+        )
+    );
+
+    return
+        $ga4Email !== ''
+        && $gbpEmail !== ''
+        && hash_equals(
+            $ga4Email,
+            $gbpEmail
+        );
 }
 
 function googlehub_consume_oauth_state(string $state): array

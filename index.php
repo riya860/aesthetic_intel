@@ -130,12 +130,66 @@ try{
    break;
 
   case 'business-google-connect':
-   require_auth();if(!is_post())redirect(url('business-google'));csrf_enforce();
+   require_auth();
+
+   if(!is_post()){
+    redirect(url('business-google'));
+   }
+
+   csrf_enforce();
+
    try{
-    $businessId=googlehub_require_owner();
-    $service=(string)($_POST['service']??'');
-    redirect(googlehub_oauth_start($service,$businessId,(int)auth_id()));
-   }catch(Throwable $e){flash('error','Google connection could not start: '.$e->getMessage());redirect(url('business-google'));}
+    $businessId=
+     googlehub_require_owner();
+
+    $service=trim(
+     (string)($_POST['service']??'')
+    );
+
+    $preferredEmail=null;
+    $enforcePreferredEmail=false;
+
+    /*
+     * GBP defaults to the SAME Google account already connected to GA4.
+     * A secondary "Use another account" action can explicitly opt out.
+     */
+    if(
+     $service==='gbp'
+     && empty(
+      $_POST['allow_different_google_account']
+     )
+    ){
+     $preferredEmail=
+      googlehub_ga4_google_email(
+       $businessId
+      );
+
+     if($preferredEmail!==null){
+      $enforcePreferredEmail=true;
+     }
+    }
+
+    redirect(
+     googlehub_oauth_start(
+      $service,
+      $businessId,
+      (int)auth_id(),
+      $preferredEmail,
+      $enforcePreferredEmail
+     )
+    );
+
+   }catch(Throwable $e){
+    flash(
+     'error',
+     'Google connection could not start: '
+      .$e->getMessage()
+    );
+
+    redirect(
+     url('business-google')
+    );
+   }
 
   case 'google-oauth-callback':
    require_auth();
@@ -151,7 +205,57 @@ try{
     $businessId=(int)$saved['business_id'];$service=(string)$saved['service'];
     $token=googlehub_exchange_code($code);
     $googleUser=googlehub_google_user_from_token($token);
-    googlehub_save_connection($businessId,(int)auth_id(),$service,$token,$googleUser);
+
+    $expectedGoogleEmail=
+     strtolower(
+      trim(
+       (string)(
+        $saved['preferred_google_email']
+        ?? ''
+       )
+      )
+     );
+
+    $actualGoogleEmail=
+     strtolower(
+      trim(
+       (string)(
+        $googleUser['email']
+        ?? ''
+       )
+      )
+     );
+
+    $enforcePreferredEmail=
+     !empty(
+      $saved['enforce_preferred_google_email']
+     );
+
+    if(
+     $enforcePreferredEmail
+     && $expectedGoogleEmail!==''
+     && $actualGoogleEmail!==$expectedGoogleEmail
+    ){
+     throw new RuntimeException(
+      'Google Business Profile must use the same Google account as GA4: '
+      .$expectedGoogleEmail
+      .'. Google returned '
+      .(
+       $actualGoogleEmail!==''
+        ? $actualGoogleEmail
+        : 'another account'
+      )
+      .'. Please reconnect GBP using the GA4 account.'
+     );
+    }
+
+    googlehub_save_connection(
+     $businessId,
+     (int)auth_id(),
+     $service,
+     $token,
+     $googleUser
+    );
 
     if($service==='ga4'){
      $options=googlehub_discover_ga4_properties($businessId);
@@ -161,10 +265,42 @@ try{
     }
 
     if($service==='gbp'){
-     $options=googlehub_discover_gbp_locations($businessId);
+     $options=
+      googlehub_discover_gbp_locations(
+       $businessId
+      );
+
+     if(!$options){
+      throw new RuntimeException(
+       'No Google Business Profile locations were returned for '
+       .(
+        $actualGoogleEmail!==''
+         ? $actualGoogleEmail
+         : 'the authorized Google account'
+       )
+       .'. Confirm that this same account is an Owner or Manager of the required Business Profile and that this Google Cloud project has GBP API access.'
+      );
+     }
+
      $_SESSION['_google_gbp_options']=$options;
-     audit('google_gbp_authorized',['locations'=>count($options)],$businessId);
-     redirect(url('business-google-select-gbp'));
+
+     audit(
+      'google_gbp_authorized',
+      [
+       'locations'=>count($options),
+       'google_email'=>$actualGoogleEmail,
+       'same_as_ga4'=>
+        (
+         $expectedGoogleEmail!==''
+         && $actualGoogleEmail===$expectedGoogleEmail
+        ),
+      ],
+      $businessId
+     );
+
+     redirect(
+      url('business-google-select-gbp')
+     );
     }
 
     throw new RuntimeException('Unknown Google service.');

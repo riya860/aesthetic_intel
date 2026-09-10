@@ -22,6 +22,20 @@ $timezone=(string)($propertyDetails['timeZone']??$business['timezone']??'UTC');
 $currency=strtoupper((string)($propertyDetails['currencyCode']??'USD'))?:'USD';
 $currentMetrics=is_array($current['metrics']??null)?$current['metrics']:[];
 
+$ga4GoogleEmail=strtolower(
+ trim((string)($ga4['google_email']??''))
+);
+$gbpGoogleEmail=strtolower(
+ trim((string)($gbp['google_email']??''))
+);
+$gbpUsesGa4Account=
+ $ga4GoogleEmail!==''
+ && $gbpGoogleEmail!==''
+ && hash_equals(
+  $ga4GoogleEmail,
+  $gbpGoogleEmail
+ );
+
 if(!function_exists('googlehub_ui_metric')){
  function googlehub_ui_metric(string $metric,?float $value,string $currency='USD'):string{
   if($value===null)return '—';
@@ -218,15 +232,141 @@ foreach($trend as $row){$trendData[]=['date'=>(string)($row['metric_date']??''),
   <?php endif;?>
  </section>
 
- <section class="google-secondary-service">
-  <div class="google-section-heading"><div><span class="google-kicker">Google Business Profile</span><h2><?=$gbp?googlehub_esc((string)($gbp['selected_resource_name']??'Connected')):'Not connected'?></h2></div><span class="google-status <?=$gbp&&($gbp['status']??'')==='connected'?'is-good':''?>"><?=googlehub_esc((string)($gbp['status']??'disconnected'))?></span></div>
+ <section class="google-secondary-service" id="gbp-control">
+  <div class="google-section-heading">
+   <div>
+    <span class="google-kicker">Google Business Profile</span>
+    <div class="google-title-row">
+     <h2><?=$gbp?googlehub_esc((string)($gbp['selected_resource_name']??'Connected')):'Not connected'?></h2>
+     <?php if($gbp&&$gbpUsesGa4Account):?>
+      <span class="google-account-match">Same account as GA4</span>
+     <?php elseif($gbp&&$ga4GoogleEmail!==''):?>
+      <span class="google-account-mismatch">Different Google account</span>
+     <?php endif;?>
+    </div>
+   </div>
+   <span class="google-status <?=$gbp&&($gbp['status']??'')==='connected'?'is-good':''?>"><?=googlehub_esc((string)($gbp['status']??'disconnected'))?></span>
+  </div>
+
+  <?php if($ga4GoogleEmail!==''):?>
+   <div class="google-shared-account-banner">
+    <div>
+     <span>GA4 Google account</span>
+     <strong><?=googlehub_esc($ga4GoogleEmail)?></strong>
+     <small>Google Business Profile will use this same Google identity by default.</small>
+    </div>
+
+    <?php if($gbp&&!$gbpUsesGa4Account):?>
+     <form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>">
+      <?=csrf_field()?>
+      <input type="hidden" name="service" value="gbp">
+      <button class="google-primary-button" type="submit">Reconnect GBP with GA4 account</button>
+     </form>
+    <?php endif;?>
+   </div>
+  <?php endif;?>
+
   <?php if($gbp):?>
-   <p class="google-muted">Google account: <?=googlehub_esc((string)($gbp['google_email']??''))?> · Last sync: <?=googlehub_esc(googlehub_ui_date((string)($gbp['last_synced_at']??'')))?></p>
-   <div class="google-mini-kpis"><div><span>Search views · 30d</span><strong><?=number_format((int)($gbpSummary['search_impressions']??0))?></strong></div><div><span>Maps views</span><strong><?=number_format((int)($gbpSummary['maps_impressions']??0))?></strong></div><div><span>Website clicks</span><strong><?=number_format((int)($gbpSummary['website_clicks']??0))?></strong></div><div><span>Calls</span><strong><?=number_format((int)($gbpSummary['call_clicks']??0))?></strong></div></div>
-   <div class="google-actions"><form method="post" action="<?=googlehub_esc(url('business-google-sync'))?>"><?=csrf_field()?><input type="hidden" name="service" value="gbp"><button class="google-primary-button" type="submit">Sync GBP</button></form><form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>"><?=csrf_field()?><input type="hidden" name="service" value="gbp"><button class="google-secondary-button" type="submit">Reconnect</button></form><form method="post" action="<?=googlehub_esc(url('business-google-disconnect'))?>" onsubmit="return confirm('Disconnect Google Business Profile? Historical synchronized metrics will be kept.');"><?=csrf_field()?><input type="hidden" name="service" value="gbp"><button class="google-link-button" type="submit">Disconnect</button></form></div>
+   <p class="google-muted">
+    GBP Google account:
+    <strong><?=googlehub_esc((string)($gbp['google_email']??''))?></strong>
+    · Last sync:
+    <?=googlehub_esc(googlehub_ui_date((string)($gbp['last_synced_at']??'')))?>
+   </p>
+
+   <?php if($ga4GoogleEmail!==''&&!$gbpUsesGa4Account):?>
+    <div class="google-account-warning">
+     <strong>GBP is connected with a different Google account.</strong>
+     <span>
+      GA4 uses <?=googlehub_esc($ga4GoogleEmail)?> while GBP uses
+      <?=googlehub_esc($gbpGoogleEmail!==''?$gbpGoogleEmail:'another account')?>.
+      Reconnect GBP to keep both services under one Google identity.
+     </span>
+    </div>
+   <?php endif;?>
+
+   <div class="google-mini-kpis">
+    <div><span>Search views · 30d</span><strong><?=number_format((int)($gbpSummary['search_impressions']??0))?></strong></div>
+    <div><span>Maps views</span><strong><?=number_format((int)($gbpSummary['maps_impressions']??0))?></strong></div>
+    <div><span>Website clicks</span><strong><?=number_format((int)($gbpSummary['website_clicks']??0))?></strong></div>
+    <div><span>Calls</span><strong><?=number_format((int)($gbpSummary['call_clicks']??0))?></strong></div>
+   </div>
+
+   <div class="google-actions">
+    <form method="post" action="<?=googlehub_esc(url('business-google-sync'))?>">
+     <?=csrf_field()?>
+     <input type="hidden" name="service" value="gbp">
+     <button class="google-primary-button" type="submit">Sync GBP</button>
+    </form>
+
+    <?php if($ga4GoogleEmail!==''&&!$gbpUsesGa4Account):?>
+     <form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>">
+      <?=csrf_field()?>
+      <input type="hidden" name="service" value="gbp">
+      <button class="google-secondary-button" type="submit">Use GA4 Google account</button>
+     </form>
+    <?php endif;?>
+
+    <details class="google-inline-details">
+     <summary>More</summary>
+     <div class="google-inline-details-menu">
+      <form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>">
+       <?=csrf_field()?>
+       <input type="hidden" name="service" value="gbp">
+       <input type="hidden" name="allow_different_google_account" value="1">
+       <button class="google-link-button" type="submit">Use a different Google account</button>
+      </form>
+
+      <form method="post" action="<?=googlehub_esc(url('business-google-disconnect'))?>" onsubmit="return confirm('Disconnect Google Business Profile? Historical synchronized metrics will be kept.');">
+       <?=csrf_field()?>
+       <input type="hidden" name="service" value="gbp">
+       <button class="google-link-button google-danger-link" type="submit">Disconnect</button>
+      </form>
+     </div>
+    </details>
+   </div>
+
   <?php else:?>
-   <p>Connect a Business Profile location to track Search, Maps, website, call and direction activity.</p>
-   <form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>"><?=csrf_field()?><input type="hidden" name="service" value="gbp"><button class="google-primary-button" type="submit">Connect Business Profile</button></form>
+
+   <?php if($ga4GoogleEmail!==''):?>
+    <div class="google-gbp-connect-state">
+     <div>
+      <strong>Connect GBP using the GA4 account</strong>
+      <span><?=googlehub_esc($ga4GoogleEmail)?></span>
+      <small>
+       Google will ask this same account to approve Business Profile access.
+       Aesthetic Intel will reject the callback if a different Google account is returned.
+      </small>
+     </div>
+
+     <form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>">
+      <?=csrf_field()?>
+      <input type="hidden" name="service" value="gbp">
+      <button class="google-primary-button" type="submit">
+       Connect GBP with <?=googlehub_esc($ga4GoogleEmail)?>
+      </button>
+     </form>
+    </div>
+
+    <details class="google-inline-details google-gbp-other-account">
+     <summary>Need another Google account?</summary>
+     <form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>">
+      <?=csrf_field()?>
+      <input type="hidden" name="service" value="gbp">
+      <input type="hidden" name="allow_different_google_account" value="1">
+      <button class="google-secondary-button" type="submit">Choose another Google account</button>
+     </form>
+    </details>
+
+   <?php else:?>
+    <p>Connect GA4 first if you want GBP to automatically use the exact same Google account.</p>
+    <form method="post" action="<?=googlehub_esc(url('business-google-connect'))?>">
+     <?=csrf_field()?>
+     <input type="hidden" name="service" value="gbp">
+     <button class="google-primary-button" type="submit">Connect Business Profile</button>
+    </form>
+   <?php endif;?>
+
   <?php endif;?>
  </section>
 
