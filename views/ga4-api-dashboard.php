@@ -8,6 +8,7 @@ $metadata = is_array($metadata ?? null) ? $metadata : [
     'error' => null,
 ];
 $customReport = is_array($customReport ?? null) ? $customReport : null;
+$pdfComparison = is_array($pdfComparison ?? null) ? $pdfComparison : null;
 
 $periodStart = (string)($periodStart ?? '');
 $periodEnd = (string)($periodEnd ?? '');
@@ -690,6 +691,7 @@ $fetchSucceeded =
             <a href="#audience">Audience</a>
             <a href="#events">Events</a>
             <a href="#ecommerce">E-commerce</a>
+            <a href="#pdf-compare">PDF Compare</a>
             <a href="#explorer">Data Explorer</a>
         </nav>
 
@@ -895,6 +897,389 @@ $fetchSucceeded =
                 $currencyCode,
                 25
             ); ?>
+        </section>
+
+
+        <section
+            class="ga4-api-panel ga4-pdf-compare"
+            id="pdf-compare"
+        >
+            <div class="ga4-api-panel-head">
+                <div>
+                    <span class="ga4-api-kicker">
+                        VALIDATION
+                    </span>
+
+                    <h2>Compare GA4 API with PDF</h2>
+
+                    <p>
+                        Upload the GA4 PDF for the same reporting period.
+                        Aesthetic Intel compares the PDF against the live
+                        Google Analytics property currently connected to
+                        <strong><?= ga4dash_h(
+                            (string)($business['name'] ?? 'this business')
+                        ) ?></strong>.
+                    </p>
+                </div>
+
+                <span class="ga4-api-source-badge">
+                    Property <?= ga4dash_h($propertyId) ?>
+                </span>
+            </div>
+
+            <div class="ga4-compare-context">
+                <div>
+                    <span>Business</span>
+                    <strong>
+                        <?= ga4dash_h(
+                            (string)($business['name'] ?? '—')
+                        ) ?>
+                    </strong>
+                </div>
+
+                <div>
+                    <span>GA4 property</span>
+                    <strong>
+                        <?= ga4dash_h($propertyName) ?>
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Comparison period</span>
+                    <strong>
+                        <?= ga4dash_h($periodStart) ?>
+                        →
+                        <?= ga4dash_h($periodEnd) ?>
+                    </strong>
+                </div>
+            </div>
+
+            <form
+                method="post"
+                enctype="multipart/form-data"
+                action="<?= ga4dash_h(
+                    url('business-ga4-api-data')
+                ) ?>#pdf-compare"
+                class="ga4-compare-form"
+            >
+                <?= csrf_field() ?>
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="compare_pdf"
+                >
+
+                <input
+                    type="hidden"
+                    name="period_start"
+                    value="<?= ga4dash_h($periodStart) ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="period_end"
+                    value="<?= ga4dash_h($periodEnd) ?>"
+                >
+
+                <label class="ga4-pdf-file-field">
+                    <span>GA4 PDF report(s)</span>
+
+                    <input
+                        type="file"
+                        name="ga4_pdfs[]"
+                        accept="application/pdf,.pdf"
+                        multiple
+                        required
+                    >
+
+                    <small>
+                        Use the same date range shown above. You can upload
+                        multiple GA4 PDFs when the reporting data is split
+                        across more than one exported report.
+                    </small>
+                </label>
+
+                <div class="ga4-compare-actions">
+                    <button
+                        type="submit"
+                        class="ga4-btn ga4-btn-primary"
+                    >
+                        Compare PDF with live API
+                    </button>
+
+                    <a
+                        class="ga4-btn ga4-btn-secondary"
+                        href="<?= ga4dash_h(
+                            url(
+                                'business-ai-extraction',
+                                ['source' => 'ga4']
+                            )
+                        ) ?>"
+                    >
+                        Open existing GA4 PDF Upload
+                    </a>
+                </div>
+            </form>
+
+            <?php if ($pdfComparison): ?>
+                <?php if (empty($pdfComparison['success'])): ?>
+                    <div
+                        class="ga4-compare-alert ga4-compare-alert-error"
+                        role="alert"
+                    >
+                        <strong>PDF comparison failed.</strong>
+
+                        <span>
+                            <?= ga4dash_h(
+                                (string)(
+                                    $pdfComparison['error']
+                                    ?? 'The PDF could not be compared.'
+                                )
+                            ) ?>
+                        </span>
+                    </div>
+                <?php else: ?>
+                    <?php
+                    $compareStatus =
+                        (string)(
+                            $pdfComparison['overall_status']
+                            ?? 'unavailable'
+                        );
+
+                    $compareClass =
+                        $compareStatus === 'verified'
+                            ? 'verified'
+                            : (
+                                $compareStatus === 'review'
+                                    ? 'review'
+                                    : 'unavailable'
+                            );
+                    ?>
+
+                    <div
+                        class="ga4-compare-summary ga4-compare-summary-<?= ga4dash_h(
+                            $compareClass
+                        ) ?>"
+                    >
+                        <article>
+                            <span>API ↔ PDF alignment</span>
+                            <strong>
+                                <?= number_format(
+                                    (float)(
+                                        $pdfComparison['match_percent']
+                                        ?? 0
+                                    ),
+                                    1
+                                ) ?>%
+                            </strong>
+                        </article>
+
+                        <article>
+                            <span>Comparable metrics</span>
+                            <strong>
+                                <?= number_format(
+                                    (int)(
+                                        $pdfComparison['comparable_metrics']
+                                        ?? 0
+                                    )
+                                ) ?>
+                            </strong>
+                        </article>
+
+                        <article>
+                            <span>Matched</span>
+                            <strong>
+                                <?= number_format(
+                                    (int)(
+                                        $pdfComparison['matched_metrics']
+                                        ?? 0
+                                    )
+                                ) ?>
+                            </strong>
+                        </article>
+
+                        <article>
+                            <span>Needs review</span>
+                            <strong>
+                                <?= number_format(
+                                    (int)(
+                                        $pdfComparison['review_metrics']
+                                        ?? 0
+                                    )
+                                ) ?>
+                            </strong>
+                        </article>
+                    </div>
+
+                    <div class="ga4-compare-result-head">
+                        <div>
+                            <strong>
+                                <?= ga4dash_h(
+                                    (string)(
+                                        $pdfComparison['business_name']
+                                        ?? ''
+                                    )
+                                ) ?>
+                            </strong>
+
+                            <span>
+                                Property
+                                <?= ga4dash_h(
+                                    (string)(
+                                        $pdfComparison['property_id']
+                                        ?? ''
+                                    )
+                                ) ?>
+                            </span>
+                        </div>
+
+                        <span>
+                            <?= ga4dash_h(
+                                (string)(
+                                    $pdfComparison['period_start']
+                                    ?? ''
+                                )
+                            ) ?>
+                            →
+                            <?= ga4dash_h(
+                                (string)(
+                                    $pdfComparison['period_end']
+                                    ?? ''
+                                )
+                            ) ?>
+                        </span>
+                    </div>
+
+                    <?php if (!empty($pdfComparison['files'])): ?>
+                        <div class="ga4-compare-files">
+                            <strong>Compared PDF(s):</strong>
+                            <?= ga4dash_h(
+                                implode(
+                                    ', ',
+                                    (array)$pdfComparison['files']
+                                )
+                            ) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="ga4-api-table-wrap">
+                        <table class="ga4-api-table ga4-compare-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Live API</th>
+                                    <th>PDF</th>
+                                    <th>Difference</th>
+                                    <th>Difference %</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                <?php foreach (
+                                    (array)($pdfComparison['metrics'] ?? [])
+                                    as $metricRow
+                                ): ?>
+                                    <?php
+                                    $status =
+                                        (string)(
+                                            $metricRow['status']
+                                            ?? 'unavailable'
+                                        );
+                                    ?>
+                                    <tr>
+                                        <td>
+                                            <strong>
+                                                <?= ga4dash_h(
+                                                    (string)(
+                                                        $metricRow['label']
+                                                        ?? ''
+                                                    )
+                                                ) ?>
+                                            </strong>
+                                        </td>
+
+                                        <td>
+                                            <?= ga4dash_h(
+                                                (string)(
+                                                    $metricRow['api_display']
+                                                    ?? '—'
+                                                )
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= ga4dash_h(
+                                                (string)(
+                                                    $metricRow['pdf_display']
+                                                    ?? '—'
+                                                )
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?= ga4dash_h(
+                                                (string)(
+                                                    $metricRow['delta_display']
+                                                    ?? '—'
+                                                )
+                                            ) ?>
+                                        </td>
+
+                                        <td>
+                                            <?php if (
+                                                $metricRow['delta_percent']
+                                                !== null
+                                            ): ?>
+                                                <?= number_format(
+                                                    (float)$metricRow[
+                                                        'delta_percent'
+                                                    ],
+                                                    2
+                                                ) ?>%
+                                            <?php else: ?>
+                                                —
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <td>
+                                            <span
+                                                class="ga4-compare-status ga4-compare-status-<?= ga4dash_h(
+                                                    $status
+                                                ) ?>"
+                                            >
+                                                <?=
+                                                    $status === 'match'
+                                                        ? 'Matched'
+                                                        : (
+                                                            $status === 'review'
+                                                                ? 'Review'
+                                                                : 'Not found'
+                                                        )
+                                                ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <?php if (
+                        (int)(
+                            $pdfComparison['pdf_metrics_not_found']
+                            ?? 0
+                        ) > 0
+                    ): ?>
+                        <div class="ga4-api-muted ga4-compare-note">
+                            Some API metrics were not found in the uploaded
+                            PDF. They are marked “Not found” and are excluded
+                            from the alignment percentage.
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+            <?php endif; ?>
         </section>
 
         <section
@@ -1176,11 +1561,12 @@ $fetchSucceeded =
         </section>
 
         <section class="ga4-api-footnote">
-            <strong>PDF and API remain separate sources.</strong>
+            <strong>PDF upload remains intact.</strong>
 
             Your existing GA4 PDF upload route has not been changed.
-            Use API Data for live Google reporting, and use PDF Upload whenever
-            you still need the existing uploaded-report workflow.
+            The PDF Compare section is an additional validation layer that
+            compares an uploaded GA4 PDF against the currently selected
+            business's live Google Analytics API data.
         </section>
 
         <script

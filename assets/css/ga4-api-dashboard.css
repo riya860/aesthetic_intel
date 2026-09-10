@@ -460,3 +460,178 @@
     opacity:1;
     transform:translateY(0);
 }
+
+
+/* ---------------------------------------------------------------
+   GA4 PDF ↔ LIVE API COMPARISON
+   --------------------------------------------------------------- */
+
+.ga4-pdf-compare{
+    scroll-margin-top:90px;
+}
+.ga4-compare-context{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px;
+    margin:0 0 18px;
+}
+.ga4-compare-context>div{
+    display:grid;
+    gap:5px;
+    min-width:0;
+    padding:14px;
+    border:1px solid #e2e3e7;
+    border-radius:13px;
+    background:#fafafa;
+}
+.ga4-compare-context span,
+.ga4-pdf-file-field>span{
+    color:#777880;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+}
+.ga4-compare-context strong{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    color:#25262b;
+    font-size:13px;
+}
+.ga4-compare-form{
+    display:grid;
+    gap:14px;
+    margin:0 0 20px;
+    padding:17px;
+    border:1px dashed #d7d8dd;
+    border-radius:15px;
+    background:#fcfcfd;
+}
+.ga4-pdf-file-field{
+    display:grid;
+    gap:8px;
+}
+.ga4-pdf-file-field input[type="file"]{
+    width:100%;
+    padding:11px;
+    border:1px solid #d9dae0;
+    border-radius:11px;
+    background:#fff;
+    font:inherit;
+}
+.ga4-pdf-file-field small{
+    color:#86878e;
+    line-height:1.5;
+}
+.ga4-compare-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+.ga4-compare-alert{
+    display:grid;
+    gap:5px;
+    margin-top:16px;
+    padding:14px 16px;
+    border:1px solid;
+    border-radius:13px;
+    font-size:13px;
+}
+.ga4-compare-alert-error{
+    border-color:#e7bfc1;
+    background:#fff4f4;
+    color:#a14045;
+}
+.ga4-compare-summary{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:10px;
+    margin:18px 0;
+}
+.ga4-compare-summary article{
+    display:grid;
+    gap:5px;
+    padding:15px;
+    border:1px solid #e1e2e6;
+    border-radius:14px;
+    background:#fff;
+}
+.ga4-compare-summary article span{
+    color:#7c7d84;
+    font-size:11px;
+    font-weight:750;
+}
+.ga4-compare-summary article strong{
+    font-size:24px;
+    letter-spacing:-.03em;
+}
+.ga4-compare-summary-verified article:first-child{
+    border-color:#cfe5d6;
+    background:#f2faf5;
+}
+.ga4-compare-summary-review article:first-child{
+    border-color:#ead9b3;
+    background:#fff9ec;
+}
+.ga4-compare-result-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin:12px 0;
+    color:#707179;
+    font-size:12px;
+}
+.ga4-compare-result-head>div{
+    display:flex;
+    gap:9px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+.ga4-compare-result-head strong{
+    color:#292a2f;
+}
+.ga4-compare-files{
+    margin-bottom:12px;
+    color:#72737a;
+    font-size:12px;
+}
+.ga4-compare-status{
+    display:inline-flex;
+    align-items:center;
+    min-height:24px;
+    padding:0 8px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:800;
+}
+.ga4-compare-status-match{
+    background:#eaf6ee;
+    color:#31704c;
+}
+.ga4-compare-status-review{
+    background:#fff3dc;
+    color:#99640b;
+}
+.ga4-compare-status-unavailable{
+    background:#f0f0f2;
+    color:#6f7077;
+}
+.ga4-compare-note{
+    margin-top:10px;
+}
+@media(max-width:850px){
+    .ga4-compare-context,
+    .ga4-compare-summary{
+        grid-template-columns:1fr 1fr;
+    }
+}
+@media(max-width:520px){
+    .ga4-compare-context,
+    .ga4-compare-summary{
+        grid-template-columns:1fr;
+    }
+}

@@ -974,3 +974,828 @@ if (!function_exists('ga4dash_currency_code')) {
             : 'USD';
     }
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| GA4 PDF ↔ LIVE API COMPARISON
+|--------------------------------------------------------------------------
+|
+| This comparison is business-agnostic. It always uses:
+|   - the current Aesthetic Intel business context,
+|   - that business's connected Google Analytics property,
+|   - the current dashboard date range,
+|   - PDFs uploaded specifically for that comparison request.
+|
+| Therefore RUMA, Remedy, and future businesses remain isolated by
+| business_id and connected property.
+|
+|--------------------------------------------------------------------------
+*/
+
+if (!function_exists('ga4dash_compare_metric_definitions')) {
+    /**
+     * @return array<string,array<string,mixed>>
+     */
+    function ga4dash_compare_metric_definitions(): array
+    {
+        return [
+            'sessions' => [
+                'label' => 'Sessions',
+                'aliases' => [
+                    'sessions',
+                    'session_count',
+                    'sessioncount',
+                ],
+                'type' => 'count',
+            ],
+
+            'activeUsers' => [
+                'label' => 'Active users',
+                'aliases' => [
+                    'active_users',
+                    'activeusers',
+                    'active user',
+                    'active users',
+                ],
+                'type' => 'count',
+            ],
+
+            'newUsers' => [
+                'label' => 'New users',
+                'aliases' => [
+                    'new_users',
+                    'newusers',
+                    'new user',
+                    'new users',
+                ],
+                'type' => 'count',
+            ],
+
+            'engagedSessions' => [
+                'label' => 'Engaged sessions',
+                'aliases' => [
+                    'engaged_sessions',
+                    'engagedsessions',
+                    'engaged session',
+                    'engaged sessions',
+                ],
+                'type' => 'count',
+            ],
+
+            'engagementRate' => [
+                'label' => 'Engagement rate',
+                'aliases' => [
+                    'engagement_rate',
+                    'engagementrate',
+                    'engagement rate',
+                ],
+                'type' => 'percent',
+            ],
+
+            'bounceRate' => [
+                'label' => 'Bounce rate',
+                'aliases' => [
+                    'bounce_rate',
+                    'bouncerate',
+                    'bounce rate',
+                ],
+                'type' => 'percent',
+            ],
+
+            'averageSessionDuration' => [
+                'label' => 'Avg. session duration',
+                'aliases' => [
+                    'average_session_duration',
+                    'averagesessionduration',
+                    'avg_session_duration',
+                    'avgsessionduration',
+                    'average session duration',
+                    'avg session duration',
+                ],
+                'type' => 'duration',
+            ],
+
+            'screenPageViews' => [
+                'label' => 'Views',
+                'aliases' => [
+                    'screen_page_views',
+                    'screenpageviews',
+                    'views',
+                    'page_views',
+                    'pageviews',
+                ],
+                'type' => 'count',
+            ],
+
+            'eventCount' => [
+                'label' => 'Event count',
+                'aliases' => [
+                    'event_count',
+                    'eventcount',
+                    'event count',
+                    'events',
+                ],
+                'type' => 'count',
+            ],
+
+            'keyEvents' => [
+                'label' => 'Key events',
+                'aliases' => [
+                    'key_events',
+                    'keyevents',
+                    'key events',
+                    'conversions',
+                    'conversion_events',
+                    'conversionevents',
+                ],
+                'type' => 'count',
+            ],
+
+            'totalRevenue' => [
+                'label' => 'Total revenue',
+                'aliases' => [
+                    'total_revenue',
+                    'totalrevenue',
+                    'total revenue',
+                    'revenue',
+                ],
+                'type' => 'money',
+            ],
+        ];
+    }
+}
+
+if (!function_exists('ga4dash_compare_normalize_key')) {
+    function ga4dash_compare_normalize_key(string $value): string
+    {
+        return strtolower(
+            preg_replace(
+                '/[^a-z0-9]+/i',
+                '',
+                trim($value)
+            )
+        );
+    }
+}
+
+if (!function_exists('ga4dash_compare_parse_number')) {
+    /**
+     * Normalize a scalar PDF value into a comparable number.
+     *
+     * Percentages are returned as percentage points (57.9, not 0.579).
+     * Durations are returned as seconds.
+     */
+    function ga4dash_compare_parse_number(
+        mixed $value,
+        string $type
+    ): ?float {
+        if (
+            is_int($value)
+            || is_float($value)
+        ) {
+            $number = (float)$value;
+
+            if (
+                $type === 'percent'
+                && abs($number) <= 1.0
+            ) {
+                return $number * 100.0;
+            }
+
+            return $number;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $raw = trim($value);
+
+        if ($raw === '') {
+            return null;
+        }
+
+        /*
+         * Duration examples:
+         *  3m 00s
+         *  00:03:00
+         *  3:00
+         *  180
+         */
+        if ($type === 'duration') {
+            if (
+                preg_match(
+                    '/^(?:(\d+)\s*h(?:ours?)?\s*)?'
+                    . '(?:(\d+)\s*m(?:in(?:utes?)?)?\s*)?'
+                    . '(?:(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?)?$/i',
+                    $raw,
+                    $m
+                )
+                && (
+                    ($m[1] ?? '') !== ''
+                    || ($m[2] ?? '') !== ''
+                    || ($m[3] ?? '') !== ''
+                )
+            ) {
+                return
+                    ((float)($m[1] ?? 0) * 3600)
+                    + ((float)($m[2] ?? 0) * 60)
+                    + (float)($m[3] ?? 0);
+            }
+
+            if (
+                preg_match(
+                    '/^(\d{1,3}):(\d{2})(?::(\d{2}(?:\.\d+)?))?$/',
+                    $raw,
+                    $m
+                )
+            ) {
+                if (($m[3] ?? '') !== '') {
+                    return
+                        ((float)$m[1] * 3600)
+                        + ((float)$m[2] * 60)
+                        + (float)$m[3];
+                }
+
+                return
+                    ((float)$m[1] * 60)
+                    + (float)$m[2];
+            }
+        }
+
+        $clean = str_replace(
+            [',', '$', 'USD', 'usd', '€', '£'],
+            '',
+            $raw
+        );
+
+        $clean = trim($clean);
+
+        if (
+            $type === 'percent'
+            && str_ends_with($clean, '%')
+        ) {
+            $clean = rtrim($clean, "% \t\n\r\0\x0B");
+        }
+
+        if (!is_numeric($clean)) {
+            /*
+             * Last-resort numeric extraction for values such as "$2,900.00 USD".
+             */
+            if (
+                !preg_match(
+                    '/-?\d+(?:\.\d+)?/',
+                    str_replace(',', '', $raw),
+                    $m
+                )
+            ) {
+                return null;
+            }
+
+            $clean = $m[0];
+        }
+
+        $number = (float)$clean;
+
+        if (
+            $type === 'percent'
+            && !str_contains($raw, '%')
+            && abs($number) <= 1.0
+        ) {
+            $number *= 100.0;
+        }
+
+        return $number;
+    }
+}
+
+if (!function_exists('ga4dash_compare_collect_scalars')) {
+    /**
+     * @return array<int,array{path:string,key:string,value:mixed}>
+     */
+    function ga4dash_compare_collect_scalars(
+        mixed $value,
+        string $path = '',
+        int $depth = 0
+    ): array {
+        if ($depth > 12) {
+            return [];
+        }
+
+        $rows = [];
+
+        if (is_array($value)) {
+            foreach ($value as $key => $child) {
+                $keyText = (string)$key;
+
+                $childPath =
+                    $path === ''
+                        ? $keyText
+                        : $path . '.' . $keyText;
+
+                if (is_array($child)) {
+                    foreach (
+                        ga4dash_compare_collect_scalars(
+                            $child,
+                            $childPath,
+                            $depth + 1
+                        )
+                        as $nested
+                    ) {
+                        $rows[] = $nested;
+                    }
+
+                    continue;
+                }
+
+                if (
+                    is_scalar($child)
+                    || $child === null
+                ) {
+                    $rows[] = [
+                        'path' => $childPath,
+                        'key' => $keyText,
+                        'value' => $child,
+                    ];
+                }
+            }
+        }
+
+        return $rows;
+    }
+}
+
+if (!function_exists('ga4dash_compare_pdf_metric')) {
+    /**
+     * Find the best scalar candidate for one metric in the normalized
+     * PDF bundle returned by the project's existing GA4 PDF parser.
+     *
+     * @return array{value:float,path:string,raw:mixed}|null
+     */
+    function ga4dash_compare_pdf_metric(
+        array $bundle,
+        array $definition
+    ): ?array {
+        $aliases = array_map(
+            'ga4dash_compare_normalize_key',
+            (array)($definition['aliases'] ?? [])
+        );
+
+        $type =
+            (string)($definition['type'] ?? 'count');
+
+        $best = null;
+        $bestScore = -PHP_INT_MAX;
+
+        foreach (
+            ga4dash_compare_collect_scalars($bundle)
+            as $candidate
+        ) {
+            $keyNormalized =
+                ga4dash_compare_normalize_key(
+                    (string)$candidate['key']
+                );
+
+            $pathNormalized =
+                ga4dash_compare_normalize_key(
+                    (string)$candidate['path']
+                );
+
+            $matched = false;
+            $score = 0;
+
+            foreach ($aliases as $alias) {
+                if ($alias === '') {
+                    continue;
+                }
+
+                if ($keyNormalized === $alias) {
+                    $matched = true;
+                    $score = max($score, 100);
+                } elseif (
+                    str_ends_with(
+                        $pathNormalized,
+                        $alias
+                    )
+                ) {
+                    $matched = true;
+                    $score = max($score, 75);
+                }
+            }
+
+            if (!$matched) {
+                continue;
+            }
+
+            $pathLower =
+                strtolower(
+                    (string)$candidate['path']
+                );
+
+            /*
+             * Prefer aggregate summary/KPI nodes.
+             */
+            foreach (
+                [
+                    'summary',
+                    'overview',
+                    'kpi',
+                    'metrics',
+                    'values',
+                    'combined',
+                    'totals',
+                ]
+                as $preferred
+            ) {
+                if (str_contains($pathLower, $preferred)) {
+                    $score += 18;
+                }
+            }
+
+            /*
+             * De-prioritize row-level data if the parser includes it.
+             */
+            foreach (
+                [
+                    '.rows.',
+                    '.daily.',
+                    '.channels.',
+                    '.pages.',
+                    '.events.',
+                ]
+                as $rowPath
+            ) {
+                if (str_contains($pathLower, $rowPath)) {
+                    $score -= 45;
+                }
+            }
+
+            $number =
+                ga4dash_compare_parse_number(
+                    $candidate['value'],
+                    $type
+                );
+
+            if ($number === null) {
+                continue;
+            }
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+
+                $best = [
+                    'value' => $number,
+                    'path' => (string)$candidate['path'],
+                    'raw' => $candidate['value'],
+                ];
+            }
+        }
+
+        return $best;
+    }
+}
+
+if (!function_exists('ga4dash_compare_api_metric')) {
+    function ga4dash_compare_api_metric(
+        array $dashboard,
+        string $metric,
+        string $type
+    ): ?float {
+        $overview =
+            (array)($dashboard['overview'] ?? []);
+
+        if (
+            empty($overview['ok'])
+            || empty($overview['rows'][0]['metrics'])
+            || !array_key_exists(
+                $metric,
+                (array)$overview['rows'][0]['metrics']
+            )
+        ) {
+            return null;
+        }
+
+        $raw =
+            $overview['rows'][0]['metrics'][$metric];
+
+        $value =
+            ga4dash_compare_parse_number(
+                $raw,
+                $type
+            );
+
+        /*
+         * Google returns rates as fractions.
+         */
+        if (
+            $type === 'percent'
+            && $value !== null
+            && abs((float)$raw) <= 1.0
+        ) {
+            $value = (float)$raw * 100.0;
+        }
+
+        return $value;
+    }
+}
+
+if (!function_exists('ga4dash_compare_tolerance')) {
+    function ga4dash_compare_tolerance(
+        string $type,
+        float $apiValue
+    ): float {
+        return match ($type) {
+            'percent' => 0.25,   // percentage points
+            'duration' => max(2.0, abs($apiValue) * 0.01),
+            'money' => max(1.0, abs($apiValue) * 0.005),
+            default => max(1.0, abs($apiValue) * 0.005),
+        };
+    }
+}
+
+if (!function_exists('ga4dash_compare_format_value')) {
+    function ga4dash_compare_format_value(
+        string $type,
+        ?float $value,
+        string $currencyCode = 'USD'
+    ): string {
+        if ($value === null) {
+            return '—';
+        }
+
+        if ($type === 'percent') {
+            return number_format($value, 1) . '%';
+        }
+
+        if ($type === 'money') {
+            return
+                $currencyCode
+                . ' '
+                . number_format($value, 2);
+        }
+
+        if ($type === 'duration') {
+            $seconds = max(0, (int)round($value));
+
+            $hours = intdiv($seconds, 3600);
+            $minutes = intdiv($seconds % 3600, 60);
+            $seconds = $seconds % 60;
+
+            return $hours > 0
+                ? sprintf(
+                    '%dh %02dm %02ds',
+                    $hours,
+                    $minutes,
+                    $seconds
+                )
+                : sprintf(
+                    '%dm %02ds',
+                    $minutes,
+                    $seconds
+                );
+        }
+
+        if (
+            abs($value - round($value))
+            < 0.000001
+        ) {
+            return number_format((int)round($value));
+        }
+
+        return number_format($value, 2);
+    }
+}
+
+if (!function_exists('ga4dash_compare_pdf_upload')) {
+    /**
+     * Compare one or more uploaded GA4 PDFs against the LIVE API overview
+     * for the selected business/property/date range.
+     *
+     * @return array<string,mixed>
+     */
+    function ga4dash_compare_pdf_upload(
+        int $businessId,
+        array $business,
+        ?array $connection,
+        string $startDate,
+        string $endDate,
+        array $dashboard,
+        mixed $uploadedFiles
+    ): array {
+        if (!$connection) {
+            throw new RuntimeException(
+                'Connect Google Analytics before comparing a PDF.'
+            );
+        }
+
+        if (!function_exists('ga4_validation_build_pdf_bundle')) {
+            throw new RuntimeException(
+                'The existing GA4 PDF parser is unavailable. '
+                . 'Confirm the current Aesthetic Intel bootstrap includes '
+                . 'the GA4 PDF validation functions.'
+            );
+        }
+
+        if (
+            !is_array($uploadedFiles)
+            || empty($uploadedFiles['name'])
+        ) {
+            throw new RuntimeException(
+                'Choose at least one GA4 PDF to compare.'
+            );
+        }
+
+        /*
+         * Reuse the exact parser already used by the legacy Brospro
+         * PDF/API validation feature. This preserves the existing PDF
+         * extraction behavior instead of creating a second parser.
+         */
+        $pdfBundle =
+            ga4_validation_build_pdf_bundle(
+                $uploadedFiles,
+                $startDate,
+                $endDate
+            );
+
+        if (!is_array($pdfBundle)) {
+            throw new RuntimeException(
+                'The GA4 PDF parser did not return a valid result.'
+            );
+        }
+
+        $currencyCode =
+            ga4dash_currency_code($connection);
+
+        $rows = [];
+        $comparable = 0;
+        $matched = 0;
+        $review = 0;
+        $notFound = 0;
+
+        foreach (
+            ga4dash_compare_metric_definitions()
+            as $apiMetric => $definition
+        ) {
+            $type =
+                (string)($definition['type'] ?? 'count');
+
+            $apiValue =
+                ga4dash_compare_api_metric(
+                    $dashboard,
+                    $apiMetric,
+                    $type
+                );
+
+            $pdfMetric =
+                ga4dash_compare_pdf_metric(
+                    $pdfBundle,
+                    $definition
+                );
+
+            $pdfValue =
+                $pdfMetric['value']
+                ?? null;
+
+            $status = 'unavailable';
+            $delta = null;
+            $deltaPercent = null;
+            $tolerance = null;
+
+            if (
+                $apiValue !== null
+                && $pdfValue !== null
+            ) {
+                $comparable++;
+
+                $delta =
+                    $pdfValue - $apiValue;
+
+                $deltaPercent =
+                    abs($apiValue) > 0.000001
+                        ? (
+                            $delta
+                            / $apiValue
+                            * 100.0
+                        )
+                        : (
+                            abs($pdfValue) <= 0.000001
+                                ? 0.0
+                                : null
+                        );
+
+                $tolerance =
+                    ga4dash_compare_tolerance(
+                        $type,
+                        $apiValue
+                    );
+
+                if (abs($delta) <= $tolerance) {
+                    $status = 'match';
+                    $matched++;
+                } else {
+                    $status = 'review';
+                    $review++;
+                }
+            } elseif ($pdfValue === null) {
+                $notFound++;
+            }
+
+            $rows[] = [
+                'api_metric' => $apiMetric,
+                'label' => (string)$definition['label'],
+                'type' => $type,
+                'api_value' => $apiValue,
+                'pdf_value' => $pdfValue,
+                'api_display' =>
+                    ga4dash_compare_format_value(
+                        $type,
+                        $apiValue,
+                        $currencyCode
+                    ),
+                'pdf_display' =>
+                    ga4dash_compare_format_value(
+                        $type,
+                        $pdfValue,
+                        $currencyCode
+                    ),
+                'delta' => $delta,
+                'delta_display' =>
+                    $delta === null
+                        ? '—'
+                        : ga4dash_compare_format_value(
+                            $type,
+                            $delta,
+                            $currencyCode
+                        ),
+                'delta_percent' => $deltaPercent,
+                'tolerance' => $tolerance,
+                'status' => $status,
+                'pdf_source_path' =>
+                    (string)($pdfMetric['path'] ?? ''),
+            ];
+        }
+
+        $matchPercent =
+            $comparable > 0
+                ? round(
+                    ($matched / $comparable) * 100,
+                    1
+                )
+                : 0.0;
+
+        $overallStatus =
+            $comparable < 1
+                ? 'unavailable'
+                : (
+                    $review === 0
+                        ? 'verified'
+                        : 'review'
+                );
+
+        $fileNames = [];
+
+        $names =
+            $uploadedFiles['name'] ?? [];
+
+        if (!is_array($names)) {
+            $names = [$names];
+        }
+
+        foreach ($names as $name) {
+            $name = basename((string)$name);
+
+            if ($name !== '') {
+                $fileNames[] = $name;
+            }
+        }
+
+        return [
+            'success' => true,
+            'business_id' => $businessId,
+            'business_name' => (string)($business['name'] ?? ''),
+            'property_id' =>
+                (string)(
+                    $connection['selected_resource_id']
+                    ?? ''
+                ),
+            'property_name' =>
+                (string)(
+                    $connection['selected_resource_name']
+                    ?? ''
+                ),
+            'period_start' => $startDate,
+            'period_end' => $endDate,
+            'currency_code' => $currencyCode,
+            'files' => $fileNames,
+            'metrics' => $rows,
+            'comparable_metrics' => $comparable,
+            'matched_metrics' => $matched,
+            'review_metrics' => $review,
+            'pdf_metrics_not_found' => $notFound,
+            'match_percent' => $matchPercent,
+            'overall_status' => $overallStatus,
+        ];
+    }
+}
+

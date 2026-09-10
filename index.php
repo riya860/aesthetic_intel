@@ -299,6 +299,7 @@ try{
      'error'=>null,
     ];
     $customReport=null;
+    $pdfComparison=null;
 
     if($connection){
 
@@ -371,6 +372,74 @@ try{
         );
        }
       }
+
+      if($action==='compare_pdf'){
+       try{
+        $pdfComparison=ga4dash_compare_pdf_upload(
+         $businessId,
+         $business,
+         $connection,
+         $periodStart,
+         $periodEnd,
+         $dashboard,
+         $_FILES['ga4_pdfs']??null
+        );
+
+        audit(
+         'ga4_pdf_live_api_compared',
+         [
+          'property_id'=>
+           $pdfComparison['property_id']??null,
+          'period_start'=>$periodStart,
+          'period_end'=>$periodEnd,
+          'files'=>
+           count(
+            (array)(
+             $pdfComparison['files']
+             ?? []
+            )
+           ),
+          'comparable_metrics'=>
+           (int)(
+            $pdfComparison['comparable_metrics']
+            ?? 0
+           ),
+          'matched_metrics'=>
+           (int)(
+            $pdfComparison['matched_metrics']
+            ?? 0
+           ),
+          'review_metrics'=>
+           (int)(
+            $pdfComparison['review_metrics']
+            ?? 0
+           ),
+          'match_percent'=>
+           (float)(
+            $pdfComparison['match_percent']
+            ?? 0
+           ),
+         ],
+         $businessId
+        );
+
+       }catch(Throwable $pdfError){
+        error_log(
+         '[GA4 PDF vs Live API] '
+         .$pdfError->getMessage()
+        );
+
+        $pdfComparison=[
+         'success'=>false,
+         'error'=>$pdfError->getMessage(),
+         'business_id'=>$businessId,
+         'business_name'=>
+          (string)($business['name']??''),
+         'period_start'=>$periodStart,
+         'period_end'=>$periodEnd,
+        ];
+       }
+      }
      }
     }
 
@@ -383,6 +452,7 @@ try{
       'dashboard'=>$dashboard,
       'metadata'=>$metadata,
       'customReport'=>$customReport,
+      'pdfComparison'=>$pdfComparison,
       'periodStart'=>$periodStart,
       'periodEnd'=>$periodEnd,
       'currencyCode'=>ga4dash_currency_code(
