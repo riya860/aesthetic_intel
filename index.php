@@ -119,7 +119,9 @@ try{
   case 'business-google':
    try{
     $businessId=googlehub_require_owner();
-    $model=googlehub_hub_model($businessId);
+    $ga4Days=(int)($_GET['ga4_days']??30);
+    $ga4Days=in_array($ga4Days,[7,30,90],true)?$ga4Days:30;
+    $model=googlehub_hub_model($businessId,$ga4Days);
     render('google-business-hub',['title'=>'Google Connections','model'=>$model]);
    }catch(Throwable $e){
     flash('error',$e->getMessage());
@@ -183,6 +185,7 @@ try{
      googlehub_select_ga4_property($businessId,$properties[$i]);
      unset($_SESSION['_google_ga4_options']);
      $saved=googlehub_sync_ga4($businessId,90);
+     googlehub_sync_history_log($businessId,'ga4','initial_sync','success',$saved,'GA4 property connected and initial sync completed.');
      audit('google_ga4_property_selected',['property_id'=>$properties[$i]['property_id'],'rows_synced'=>$saved],$businessId);
      flash('success','Google Analytics connected and '.$saved.' daily row(s) synchronized.');
      redirect(url('business-google'));
@@ -209,14 +212,60 @@ try{
    render('google-select-gbp',['title'=>'Choose Business Profile','locations'=>$locations]);break;
 
   case 'business-google-sync':
-   require_auth();if(!is_post())redirect(url('business-google'));csrf_enforce();
+   require_auth();
+   if(!is_post())redirect(url('business-google'));
+   csrf_enforce();
+   $businessId=0;
+   $service=trim((string)($_POST['service']??''));
    try{
-    $businessId=googlehub_require_owner();$service=(string)($_POST['service']??'');
+    $businessId=googlehub_require_owner();
     $saved=googlehub_sync_service($businessId,$service,90);
+    googlehub_sync_history_log($businessId,$service,'manual_sync','success',$saved,strtoupper($service).' synchronized successfully.');
     audit('google_service_synced',['service'=>$service,'rows'=>$saved],$businessId);
     flash('success',strtoupper($service).' synchronized successfully: '.$saved.' daily row(s).');
-   }catch(Throwable $e){error_log('[Google sync] '.$e->getMessage());flash('error','Google sync failed: '.$e->getMessage());}
-   redirect(url('business-google'));
+   }catch(Throwable $e){
+    error_log('[Google sync] '.$e->getMessage());
+    if($businessId>0&&$service!=='')googlehub_sync_history_log($businessId,$service,'manual_sync','error',0,$e->getMessage());
+    flash('error','Google sync failed: '.$e->getMessage());
+   }
+   redirect(url('business-google',['ga4_days'=>(int)($_POST['ga4_days']??30)]).'#ga4-control');
+
+  case 'business-google-ga4-action':
+   require_auth();
+   if(!is_post())redirect(url('business-google'));
+   csrf_enforce();
+   $businessId=googlehub_require_owner();
+   $action=trim((string)($_POST['action']??''));
+   $ga4Days=(int)($_POST['ga4_days']??30);
+   $ga4Days=in_array($ga4Days,[7,30,90],true)?$ga4Days:30;
+   try{
+    if($action==='test_connection'){
+     $result=googlehub_ga4_test_connection($businessId);
+     googlehub_sync_history_log($businessId,'ga4','connection_test','success',0,'Live GA4 API connection test passed for property '.($result['property_id']??'').'.');
+     audit('google_ga4_connection_tested',['property_id'=>$result['property_id']??null],$businessId);
+     flash('success','GA4 connection test passed. The live Analytics API is responding.');
+    }elseif($action==='save_key_events'){
+     googlehub_ga4_save_key_events($businessId,(array)($_POST['key_events']??[]));
+     audit('google_ga4_key_events_saved',['count'=>count((array)($_POST['key_events']??[]))],$businessId);
+     flash('success','Business key-event preferences saved.');
+    }elseif($action==='save_view'){
+     googlehub_ga4_save_view($businessId,(string)($_POST['view_name']??''),(int)($_POST['period_days']??30),(string)($_POST['section_anchor']??'trend'));
+     audit('google_ga4_saved_view_created',['name'=>(string)($_POST['view_name']??'')],$businessId);
+     flash('success','GA4 report view saved.');
+    }elseif($action==='delete_view'){
+     $viewId=(int)($_POST['view_id']??0);
+     googlehub_ga4_delete_view($businessId,$viewId);
+     audit('google_ga4_saved_view_deleted',['view_id'=>$viewId],$businessId);
+     flash('success','Saved GA4 report view removed.');
+    }else{
+     throw new RuntimeException('Unknown GA4 control-center action.');
+    }
+   }catch(Throwable $e){
+    error_log('[Google GA4 control center] '.$e->getMessage());
+    if($action==='test_connection')googlehub_sync_history_log($businessId,'ga4','connection_test','error',0,$e->getMessage());
+    flash('error',$e->getMessage());
+   }
+   redirect(url('business-google',['ga4_days'=>$ga4Days]).'#ga4-control');
 
   case 'business-google-disconnect':
    require_auth();if(!is_post())redirect(url('business-google'));csrf_enforce();
@@ -425,6 +474,11 @@ try{
           $selectedSavedPdf,
           $dashboard
          );
+
+        googlehub_ga4_store_pdf_comparison(
+         $businessId,
+         $pdfComparison
+        );
 
         audit(
          'ga4_saved_pdf_live_api_compared',

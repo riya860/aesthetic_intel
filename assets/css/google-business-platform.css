@@ -1,2 +1,1075 @@
 /* Aesthetic Intel — Google login / integrations */
-.google-auth-shell,.google-onboarding-shell,.google-picker-shell{min-height:72vh;display:grid;place-items:center;padding:32px 18px}.google-auth-card,.google-onboarding-card,.google-picker-card{width:min(100%,520px);background:#fff;border:1px solid #e7e7ea;border-radius:20px;padding:30px;box-shadow:0 12px 40px rgba(16,24,40,.06)}.google-auth-brand{display:flex;gap:14px;align-items:center;margin-bottom:24px}.google-auth-logo{width:42px;height:42px}.google-auth-card h1,.google-onboarding-card h1,.google-picker-card h1,.google-hub-header h1{margin:0 0 8px;font-size:30px;line-height:1.1;letter-spacing:-.03em}.google-auth-card p,.google-onboarding-card p,.google-picker-card p,.google-hub-header p{color:#6f7077;line-height:1.55}.google-auth-form{display:grid;gap:16px}.google-auth-form label{display:grid;gap:7px;font-weight:600;font-size:13px}.google-auth-form input,.google-auth-form select,.google-picker-list select{width:100%;border:1px solid #dadbe0;border-radius:11px;padding:12px 13px;font:inherit;background:#fff}.google-primary-button,.google-secondary-button,.google-link-button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none}.google-primary-button{border:1px solid #18181b;background:#18181b;color:#fff}.google-secondary-button{border:1px solid #d8d9de;background:#fff;color:#18181b}.google-link-button{border:0;background:transparent;color:#6f7077;padding:0 8px}.google-full-button{width:100%}.google-auth-divider{display:flex;align-items:center;gap:12px;margin:22px 0}.google-auth-divider:before,.google-auth-divider:after{content:"";height:1px;flex:1;background:#e7e7ea}.google-auth-divider span{font-size:12px;color:#909198}.google-login-option,.google-signup-option{display:grid;justify-items:center;gap:10px}.google-login-option-title{font-size:13px;font-weight:700;color:#34343a;margin-bottom:2px}.google-gis-button{display:flex;justify-content:center;width:100%;min-height:44px}.google-signup-divider{display:flex;align-items:center;gap:12px;width:100%;margin:24px 0 16px}.google-signup-divider:before,.google-signup-divider:after{content:"";height:1px;flex:1;background:#e7e7ea}.google-signup-divider span{font-size:12px;font-weight:600;color:#777880;white-space:nowrap}.google-auth-note,.google-muted{font-size:12px;color:#7a7b82;text-align:center;margin:3px 0 0}.google-config-warning{padding:13px 15px;border:1px solid #eed3a5;background:#fff8ec;border-radius:10px;color:#7d5617;font-size:13px;line-height:1.5}.google-config-warning pre{margin:8px 0;padding:9px 10px;overflow:auto;background:#fff;border:1px solid #ead9bd;border-radius:8px;font-size:12px}.google-kicker{text-transform:uppercase;letter-spacing:.09em;font-size:11px;font-weight:800;color:#6f7077}.google-hub-page{max-width:1500px;margin:0 auto;padding:26px 28px 50px}.google-hub-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;margin-bottom:20px}.google-identity-bar{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:15px 17px;background:#fff;border:1px solid #e7e7ea;border-radius:14px;margin-bottom:16px}.google-identity-bar>div{display:flex;flex-direction:column;gap:3px}.google-identity-bar span{font-size:12px;color:#777880}.google-connection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.google-connection-card{background:#fff;border:1px solid #e7e7ea;border-radius:17px;padding:20px}.google-connection-top{display:flex;justify-content:space-between;gap:14px}.google-connection-top h2{margin:4px 0 0;font-size:21px}.google-status{height:27px;display:inline-flex;align-items:center;padding:0 9px;border-radius:999px;background:#f3f3f5;color:#777880;font-size:11px;font-weight:700;text-transform:capitalize}.google-status.is-good{background:#edf8f2;color:#176d46}.google-resource-name{font-weight:700;color:#18181b!important;margin-bottom:3px}.google-mini-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:18px 0}.google-mini-kpis>div{padding:12px;border:1px solid #ececef;border-radius:11px;background:#fafafa}.google-mini-kpis span{display:block;font-size:11px;color:#787981;margin-bottom:6px}.google-mini-kpis strong{font-size:20px}.google-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.google-actions form{margin:0}.google-data-note{margin-top:16px;padding:16px 18px;border:1px solid #e7e7ea;border-radius:14px;background:#fff}.google-data-note p{margin:5px 0 0;color:#71727a;font-size:13px}.google-picker-list{display:grid;gap:10px;margin-top:20px}.google-picker-option{display:flex;align-items:flex-start;gap:10px;border:1px solid #e2e3e7;border-radius:12px;padding:14px;cursor:pointer}.google-picker-option:has(input:checked){border-color:#18181b;background:#fafafa}.google-picker-option strong,.google-picker-option small{display:block}.google-picker-option small{margin-top:4px;color:#777880;line-height:1.4}@media(max-width:850px){.google-connection-grid{grid-template-columns:1fr}.google-hub-header{align-items:flex-start;flex-direction:column}.google-hub-page{padding:20px 16px 40px}}@media(max-width:520px){.google-auth-card{padding:22px 18px}.google-auth-card h1{font-size:26px}}
+.google-auth-shell,
+.google-onboarding-shell,
+.google-picker-shell {
+    min-height: 72vh;
+    display: grid;
+    place-items: center;
+    padding: 32px 18px
+}
+
+.google-auth-card,
+.google-onboarding-card,
+.google-picker-card {
+    width: min(100%, 520px);
+    background: #fff;
+    border: 1px solid #e7e7ea;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 12px 40px rgba(16, 24, 40, .06)
+}
+
+.google-auth-brand {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 24px
+}
+
+.google-auth-logo {
+    width: 42px;
+    height: 42px
+}
+
+.google-auth-card h1,
+.google-onboarding-card h1,
+.google-picker-card h1,
+.google-hub-header h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    line-height: 1.1;
+    letter-spacing: -.03em
+}
+
+.google-auth-card p,
+.google-onboarding-card p,
+.google-picker-card p,
+.google-hub-header p {
+    color: #6f7077;
+    line-height: 1.55
+}
+
+.google-auth-form {
+    display: grid;
+    gap: 16px
+}
+
+.google-auth-form label {
+    display: grid;
+    gap: 7px;
+    font-weight: 600;
+    font-size: 13px
+}
+
+.google-auth-form input,
+.google-auth-form select,
+.google-picker-list select {
+    width: 100%;
+    border: 1px solid #dadbe0;
+    border-radius: 11px;
+    padding: 12px 13px;
+    font: inherit;
+    background: #fff
+}
+
+.google-primary-button,
+.google-secondary-button,
+.google-link-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none
+}
+
+.google-primary-button {
+    border: 1px solid #18181b;
+    background: #18181b;
+    color: #fff
+}
+
+.google-secondary-button {
+    border: 1px solid #d8d9de;
+    background: #fff;
+    color: #18181b
+}
+
+.google-link-button {
+    border: 0;
+    background: transparent;
+    color: #6f7077;
+    padding: 0 8px
+}
+
+.google-auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 22px 0
+}
+
+.google-auth-divider:before,
+.google-auth-divider:after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: #e7e7ea
+}
+
+.google-auth-divider span {
+    font-size: 12px;
+    color: #909198
+}
+
+.google-gis-button {
+    display: flex;
+    justify-content: center
+}
+
+.google-auth-note,
+.google-muted {
+    font-size: 12px;
+    color: #7a7b82
+}
+
+.google-config-warning {
+    padding: 13px 15px;
+    border: 1px solid #eed3a5;
+    background: #fff8ec;
+    border-radius: 10px;
+    color: #7d5617;
+    font-size: 13px;
+    line-height: 1.5
+}
+
+.google-kicker {
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    font-size: 11px;
+    font-weight: 800;
+    color: #6f7077
+}
+
+.google-hub-page {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 26px 28px 50px
+}
+
+.google-hub-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: flex-end;
+    margin-bottom: 20px
+}
+
+.google-identity-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 15px 17px;
+    background: #fff;
+    border: 1px solid #e7e7ea;
+    border-radius: 14px;
+    margin-bottom: 16px
+}
+
+.google-identity-bar>div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px
+}
+
+.google-identity-bar span {
+    font-size: 12px;
+    color: #777880
+}
+
+.google-connection-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px
+}
+
+.google-connection-card {
+    background: #fff;
+    border: 1px solid #e7e7ea;
+    border-radius: 17px;
+    padding: 20px
+}
+
+.google-connection-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px
+}
+
+.google-connection-top h2 {
+    margin: 4px 0 0;
+    font-size: 21px
+}
+
+.google-status {
+    height: 27px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #f3f3f5;
+    color: #777880;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: capitalize
+}
+
+.google-status.is-good {
+    background: #edf8f2;
+    color: #176d46
+}
+
+.google-resource-name {
+    font-weight: 700;
+    color: #18181b !important;
+    margin-bottom: 3px
+}
+
+.google-mini-kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 18px 0
+}
+
+.google-mini-kpis>div {
+    padding: 12px;
+    border: 1px solid #ececef;
+    border-radius: 11px;
+    background: #fafafa
+}
+
+.google-mini-kpis span {
+    display: block;
+    font-size: 11px;
+    color: #787981;
+    margin-bottom: 6px
+}
+
+.google-mini-kpis strong {
+    font-size: 20px
+}
+
+.google-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center
+}
+
+.google-actions form {
+    margin: 0
+}
+
+.google-data-note {
+    margin-top: 16px;
+    padding: 16px 18px;
+    border: 1px solid #e7e7ea;
+    border-radius: 14px;
+    background: #fff
+}
+
+.google-data-note p {
+    margin: 5px 0 0;
+    color: #71727a;
+    font-size: 13px
+}
+
+.google-picker-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px
+}
+
+.google-picker-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid #e2e3e7;
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer
+}
+
+.google-picker-option:has(input:checked) {
+    border-color: #18181b;
+    background: #fafafa
+}
+
+.google-picker-option strong,
+.google-picker-option small {
+    display: block
+}
+
+.google-picker-option small {
+    margin-top: 4px;
+    color: #777880;
+    line-height: 1.4
+}
+
+@media(max-width:850px) {
+    .google-connection-grid {
+        grid-template-columns: 1fr
+    }
+
+    .google-hub-header {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .google-hub-page {
+        padding: 20px 16px 40px
+    }
+}
+
+/* ===== GA4 Google Connections Control Center ===== */
+.google-ga4-control-card {
+    display: grid;
+    gap: 18px;
+    padding: 22px;
+    border: 1px solid #dedfe4;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 10px 34px rgba(26, 26, 33, .035);
+    scroll-margin-top: 20px
+}
+
+.google-ga4-control-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px
+}
+
+.google-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 5px
+}
+
+.google-title-row h2 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -.035em
+}
+
+.google-health {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800
+}
+
+.google-health-healthy {
+    background: #edf8f2;
+    color: #176d46
+}
+
+.google-health-warning {
+    background: #fff4df;
+    color: #9a6509
+}
+
+.google-health-error {
+    background: #fff0f1;
+    color: #a3474c
+}
+
+.google-health-disconnected {
+    background: #f1f1f3;
+    color: #71727a
+}
+
+.google-health-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px
+}
+
+.google-health-grid article {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #e7e7ea;
+    border-radius: 14px;
+    background: #fafafa
+}
+
+.google-health-grid span {
+    color: #7c7d84;
+    font-size: 11px;
+    font-weight: 750
+}
+
+.google-health-grid strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px
+}
+
+.google-health-grid small {
+    color: #8a8b92;
+    line-height: 1.4
+}
+
+.google-control-warning {
+    display: grid;
+    gap: 4px;
+    padding: 13px 15px;
+    border: 1px solid #eed3a5;
+    background: #fff8ec;
+    border-radius: 10px;
+    color: #7d5617;
+    font-size: 13px;
+    line-height: 1.5
+}
+
+.google-period-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e7e7ea;
+    border-radius: 14px;
+    background: #fafafa
+}
+
+.google-period-toolbar>div {
+    display: grid;
+    gap: 2px
+}
+
+.google-period-toolbar span {
+    color: #7c7d84;
+    font-size: 11px
+}
+
+.google-period-toolbar strong {
+    font-size: 13px
+}
+
+.google-period-tabs {
+    display: flex;
+    gap: 6px
+}
+
+.google-period-tabs a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid #dedfe4;
+    border-radius: 9px;
+    background: #fff;
+    color: #686971;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 800
+}
+
+.google-period-tabs a.is-active {
+    border-color: #18181b;
+    background: #18181b;
+    color: #fff
+}
+
+.google-performance-kpis {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px
+}
+
+.google-performance-kpi {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid #e4e5e9;
+    border-radius: 15px;
+    background: #fff
+}
+
+.google-performance-kpi>span {
+    color: #74757d;
+    font-size: 11px;
+    font-weight: 750
+}
+
+.google-performance-kpi>strong {
+    font-size: 24px;
+    letter-spacing: -.035em
+}
+
+.google-performance-kpi small {
+    font-size: 10px;
+    font-weight: 750
+}
+
+.google-performance-kpi .is-positive {
+    color: #2e8055
+}
+
+.google-performance-kpi .is-negative {
+    color: #b34f55
+}
+
+.google-performance-kpi .is-neutral {
+    color: #888990
+}
+
+.google-ga4-mid-grid,
+.google-ga4-lower-grid {
+    display: grid;
+    grid-template-columns: 1.25fr .75fr;
+    gap: 14px
+}
+
+.google-ga4-lower-grid {
+    grid-template-columns: 1.35fr .65fr
+}
+
+.google-subpanel {
+    min-width: 0;
+    padding: 17px;
+    border: 1px solid #e5e6e9;
+    border-radius: 16px;
+    background: #fcfcfd
+}
+
+.google-subpanel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 13px
+}
+
+.google-subpanel-head h3 {
+    margin: 4px 0 0;
+    font-size: 18px;
+    letter-spacing: -.02em
+}
+
+.google-subpanel-head p {
+    margin: 5px 0 0;
+    color: #7b7c84;
+    font-size: 12px;
+    line-height: 1.5
+}
+
+.google-subpanel-head>a {
+    color: #55565f;
+    font-size: 12px;
+    font-weight: 750;
+    text-decoration: none
+}
+
+.google-small-chip {
+    display: inline-flex;
+    min-height: 23px;
+    align-items: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f0f0f2;
+    color: #707179;
+    font-size: 10px;
+    font-weight: 800
+}
+
+.google-mini-chart {
+    width: 100%;
+    height: 220px
+}
+
+.google-mini-chart canvas {
+    display: block;
+    width: 100%;
+    height: 100%
+}
+
+.google-insight-list {
+    display: grid;
+    gap: 8px
+}
+
+.google-insight {
+    display: grid;
+    gap: 3px;
+    padding: 10px 11px;
+    border-radius: 11px;
+    background: #f4f4f6
+}
+
+.google-insight strong {
+    font-size: 12px
+}
+
+.google-insight span {
+    color: #74757d;
+    font-size: 11px;
+    line-height: 1.45
+}
+
+.google-insight-positive {
+    background: #f0f8f3
+}
+
+.google-insight-negative {
+    background: #fff3f3
+}
+
+.google-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px
+}
+
+.google-quick-actions form {
+    margin: 0
+}
+
+.google-event-search {
+    width: 100%;
+    min-height: 40px;
+    margin-bottom: 10px;
+    padding: 0 11px;
+    border: 1px solid #dbdce1;
+    border-radius: 10px;
+    background: #fff;
+    font: inherit
+}
+
+.google-key-event-list {
+    display: grid;
+    gap: 6px;
+    max-height: 330px;
+    overflow: auto;
+    margin-bottom: 12px;
+    padding-right: 4px
+}
+
+.google-key-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 9px 10px;
+    border: 1px solid #ececef;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer
+}
+
+.google-key-event:has(input:checked) {
+    border-color: #b9cfc2;
+    background: #f2f8f4
+}
+
+.google-key-event span {
+    display: grid;
+    gap: 2px
+}
+
+.google-key-event strong {
+    font-size: 12px
+}
+
+.google-key-event small {
+    color: #84858c;
+    font-size: 10px
+}
+
+.google-pdf-alignment {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 5px 0 9px
+}
+
+.google-pdf-alignment strong {
+    font-size: 42px;
+    letter-spacing: -.05em
+}
+
+.google-pdf-alignment span {
+    padding-bottom: 6px;
+    color: #85868d;
+    font-size: 11px
+}
+
+.google-pdf-stats {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-bottom: 10px
+}
+
+.google-pdf-stats span {
+    display: inline-flex;
+    min-height: 25px;
+    align-items: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f0f0f2;
+    color: #66676f;
+    font-size: 10px;
+    font-weight: 750
+}
+
+.google-pdf-ready {
+    display: grid;
+    gap: 4px;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid #d9e8de;
+    border-radius: 12px;
+    background: #f3faf5
+}
+
+.google-pdf-ready strong {
+    font-size: 13px
+}
+
+.google-pdf-ready span {
+    color: #687069;
+    font-size: 11px
+}
+
+.google-block-button {
+    width: 100%
+}
+
+.google-report-view-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px
+}
+
+.google-report-view {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e6e7ea;
+    border-radius: 12px;
+    background: #fff;
+    color: #24252a;
+    text-decoration: none
+}
+
+.google-report-view:hover {
+    border-color: #cfd0d5;
+    background: #fafafa
+}
+
+.google-report-view strong {
+    font-size: 12px
+}
+
+.google-report-view span {
+    color: #818289;
+    font-size: 10px;
+    line-height: 1.4
+}
+
+.google-custom-view-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 10px
+}
+
+.google-custom-view {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid #e7e7ea;
+    border-radius: 10px;
+    background: #fff
+}
+
+.google-custom-view>a {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    color: #24252a;
+    text-decoration: none
+}
+
+.google-custom-view>a strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px
+}
+
+.google-custom-view>a span {
+    color: #85868d;
+    font-size: 10px
+}
+
+.google-custom-view form {
+    margin: 0
+}
+
+.google-custom-view button {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 8px;
+    background: #f2f2f4;
+    color: #777880;
+    cursor: pointer;
+    font-size: 18px
+}
+
+.google-create-view {
+    margin-top: 10px;
+    border-top: 1px solid #ececef;
+    padding-top: 10px
+}
+
+.google-create-view summary {
+    cursor: pointer;
+    color: #595a62;
+    font-size: 12px;
+    font-weight: 800
+}
+
+.google-create-view form {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 8px;
+    align-items: end;
+    margin-top: 10px
+}
+
+.google-create-view label {
+    display: grid;
+    gap: 5px
+}
+
+.google-create-view label span {
+    color: #74757d;
+    font-size: 10px;
+    font-weight: 750
+}
+
+.google-create-view input,
+.google-create-view select {
+    width: 100%;
+    min-height: 40px;
+    padding: 0 10px;
+    border: 1px solid #dbdce1;
+    border-radius: 9px;
+    background: #fff;
+    font: inherit;
+    font-size: 12px
+}
+
+.google-sync-history,
+.google-connection-settings {
+    border-top: 1px solid #ececef;
+    padding-top: 12px
+}
+
+.google-sync-history>summary,
+.google-connection-settings>summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    color: #55565e;
+    font-size: 12px;
+    font-weight: 800
+}
+
+.google-sync-history>summary span {
+    color: #92939a;
+    font-weight: 600
+}
+
+.google-sync-history-list {
+    display: grid;
+    gap: 7px;
+    margin-top: 10px
+}
+
+.google-sync-history-row {
+    display: flex;
+    gap: 9px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: #fafafa
+}
+
+.google-history-dot {
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: #999;
+    flex: 0 0 auto
+}
+
+.google-history-success {
+    background: #3b8c60
+}
+
+.google-history-error {
+    background: #b64e54
+}
+
+.google-sync-history-row>div {
+    display: grid;
+    gap: 2px
+}
+
+.google-sync-history-row strong {
+    font-size: 11px
+}
+
+.google-sync-history-row small,
+.google-sync-history-row span {
+    color: #818289;
+    font-size: 10px;
+    line-height: 1.4
+}
+
+.google-connection-settings .google-actions {
+    margin-top: 10px
+}
+
+.google-empty-small {
+    padding: 12px;
+    border: 1px dashed #d8d9de;
+    border-radius: 10px;
+    color: #7d7e86;
+    font-size: 12px;
+    line-height: 1.5
+}
+
+.google-empty-connection {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    padding: 18px;
+    border: 1px dashed #dadbe0;
+    border-radius: 14px;
+    background: #fafafa
+}
+
+.google-empty-connection h3 {
+    margin: 0 0 5px
+}
+
+.google-empty-connection p {
+    margin: 0;
+    color: #777880;
+    font-size: 13px
+}
+
+.google-secondary-service {
+    margin-top: 16px;
+    padding: 20px;
+    border: 1px solid #e7e7ea;
+    border-radius: 17px;
+    background: #fff
+}
+
+.google-section-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px
+}
+
+.google-section-heading h2 {
+    margin: 4px 0 0;
+    font-size: 21px
+}
+
+@media(max-width:1250px) {
+    .google-performance-kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+    }
+
+    .google-report-view-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+    }
+}
+
+@media(max-width:980px) {
+    .google-health-grid {
+        grid-template-columns: 1fr
+    }
+
+    .google-ga4-mid-grid,
+    .google-ga4-lower-grid {
+        grid-template-columns: 1fr
+    }
+
+    .google-create-view form {
+        grid-template-columns: 1fr 1fr
+    }
+}
+
+@media(max-width:650px) {
+
+    .google-ga4-control-top,
+    .google-period-toolbar,
+    .google-empty-connection {
+        align-items: stretch;
+        flex-direction: column
+    }
+
+    .google-performance-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .google-report-view-grid {
+        grid-template-columns: 1fr
+    }
+
+    .google-create-view form {
+        grid-template-columns: 1fr
+    }
+}
+
+@media(max-width:430px) {
+
+    .google-performance-kpis,
+    .google-mini-kpis {
+        grid-template-columns: 1fr
+    }
+}

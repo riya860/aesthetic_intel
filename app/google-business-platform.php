@@ -62,9 +62,15 @@ function googlehub_base_url(): string
         return $configured;
     }
 
-    $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    $https =
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (
+            isset($_SERVER['HTTP_X_FORWARDED_PROTO'])
+            && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https'
+        );
+
     $scheme = $https ? 'https' : 'http';
-    $host = (string)($_SERVER['HTTP_HOST'] ?? '127.0.0.1:8000');
+    $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost:8000');
     return $scheme . '://' . $host;
 }
 
@@ -1584,23 +1590,333 @@ function googlehub_sync_service(int $businessId, string $service, int $days = 90
     };
 }
 
-function googlehub_hub_model(int $businessId): array
+function googlehub_ga4_allowed_days(int $days): int
+{
+    return in_array($days, [7, 30, 90], true) ? $days : 30;
+}
+
+function googlehub_ga4_period_dates(int $days, bool $previous = false, string $timezone = 'UTC'): array
+{
+    $days = googlehub_ga4_allowed_days($days);
+    try { $tz = new DateTimeZone($timezone ?: 'UTC'); } catch (Throwable) { $tz = new DateTimeZone('UTC'); }
+    $end = (new DateTimeImmutable('today', $tz))->modify('-1 day');
+    $start = $end->modify('-' . ($days - 1) . ' days');
+    if (!$previous) return [$start->format('Y-m-d'), $end->format('Y-m-d')];
+    $prevEnd = $start->modify('-1 day');
+    $prevStart = $prevEnd->modify('-' . ($days - 1) . ' days');
+    return [$prevStart->format('Y-m-d'), $prevEnd->format('Y-m-d')];
+}
+
+function googlehub_ga4_property_id(int $businessId): string
+{
+    $connection = googlehub_connection($businessId, 'ga4');
+    $propertyId = trim((string)($connection['selected_resource_id'] ?? ''));
+    if (!preg_match('/^\d+$/', $propertyId)) throw new RuntimeException('Choose a valid GA4 property first.');
+    return $propertyId;
+}
+
+function googlehub_ga4_live_summary(int $businessId, int $days = 30, bool $previous = false, string $timezone = 'UTC'): array
+{
+    [$start, $end] = googlehub_ga4_period_dates($days, $previous, $timezone);
+    $propertyId = googlehub_ga4_property_id($businessId);
+    $metricNames = ['sessions','activeUsers','newUsers','engagedSessions','engagementRate','eventCount','keyEvents','totalRevenue'];
+    $response = googlehub_api_post($businessId, 'ga4',
+        'https://analyticsdata.googleapis.com/v1beta/properties/' . rawurlencode($propertyId) . ':runReport',
+        [
+            'dateRanges' => [['startDate' => $start, 'endDate' => $end]],
+            'metrics' => array_map(static fn(string $name): array => ['name' => $name], $metricNames),
+            'limit' => 1,
+        ]
+    );
+    $headers = [];
+    foreach ((array)($response['metricHeaders'] ?? []) as $i => $header) $headers[$i] = (string)($header['name'] ?? '');
+    $values = [];
+    $row = is_array($response['rows'][0] ?? null) ? $response['rows'][0] : [];
+    foreach ((array)($row['metricValues'] ?? []) as $i => $value) {
+        $name = (string)($headers[$i] ?? '');
+        if ($name !== '') $values[$name] = (float)($value['value'] ?? 0);
+    }
+    foreach ($metricNames as $name) if (!array_key_exists($name, $values)) $values[$name] = 0.0;
+    return ['period_start' => $start, 'period_end' => $end, 'metrics' => $values];
+}
+
+function googlehub_ga4_change_percent(?float $current, ?float $previous): ?float
+{
+    if ($current === null || $previous === null) return null;
+    if (abs($previous) < 0.000001) return abs($current) < 0.000001 ? 0.0 : null;
+    return (($current - $previous) / abs($previous)) * 100.0;
+}
+
+function googlehub_ga4_comparison_model(array $current, array $previous): array
+{
+    $rows = [];
+    foreach (['sessions','activeUsers','newUsers','engagedSessions','engagementRate','eventCount','keyEvents','totalRevenue'] as $metric) {
+        $c = isset($current['metrics'][$metric]) ? (float)$current['metrics'][$metric] : null;
+        $p = isset($previous['metrics'][$metric]) ? (float)$previous['metrics'][$metric] : null;
+        $rows[$metric] = ['current' => $c, 'previous' => $p, 'change_percent' => googlehub_ga4_change_percent($c, $p)];
+    }
+    return $rows;
+}
+
+function googlehub_ga4_property_details(int $businessId): array
+{
+    $propertyId = googlehub_ga4_property_id($businessId);
+    return googlehub_api_get($businessId, 'ga4', 'https://analyticsadmin.googleapis.com/v1beta/properties/' . rawurlencode($propertyId));
+}
+
+function googlehub_ga4_latest_local_date(int $businessId): ?string
+{
+    $stmt = db()->prepare('SELECT MAX(metric_date) FROM google_ga4_daily_metrics WHERE business_id=?');
+    $stmt->execute([$businessId]);
+    $value = $stmt->fetchColumn();
+    return $value ? (string)$value : null;
+}
+
+function googlehub_ga4_connection_health(int $businessId, ?array $connection): array
+{
+    if (!$connection) return ['level'=>'disconnected','label'=>'Not connected','message'=>'Connect Google Analytics to activate live reporting.','latest_data_date'=>null];
+    $status = (string)($connection['status'] ?? '');
+    $resource = trim((string)($connection['selected_resource_id'] ?? ''));
+    $scopes = json_decode((string)($connection['scopes_json'] ?? '[]'), true);
+    if (!is_array($scopes)) $scopes = [];
+    $hasScope = in_array('https://www.googleapis.com/auth/analytics.readonly', $scopes, true);
+    $hasRefresh = trim((string)($connection['refresh_token_encrypted'] ?? '')) !== '';
+    $lastError = trim((string)($connection['last_error'] ?? ''));
+    $lastSync = trim((string)($connection['last_synced_at'] ?? ''));
+    $latest = googlehub_ga4_latest_local_date($businessId);
+    if ($status !== 'connected') return ['level'=>'error','label'=>'Needs attention','message'=>$lastError ?: 'The Google connection is not currently active.','latest_data_date'=>$latest];
+    if (!preg_match('/^\d+$/', $resource) || !$hasScope || !$hasRefresh) {
+        $msg = !$hasScope ? 'The Analytics read scope is missing.' : (!$hasRefresh ? 'A refresh token is unavailable.' : 'Choose a valid Analytics property.');
+        return ['level'=>'warning','label'=>'Reconnect recommended','message'=>$msg,'latest_data_date'=>$latest];
+    }
+    if ($lastError !== '') return ['level'=>'warning','label'=>'Needs review','message'=>$lastError,'latest_data_date'=>$latest];
+    if ($lastSync === '') return ['level'=>'warning','label'=>'Sync pending','message'=>'The connection is authorized, but a local sync has not completed yet.','latest_data_date'=>$latest];
+    $ts = strtotime($lastSync);
+    if ($ts !== false && $ts < time() - 172800) return ['level'=>'warning','label'=>'Data may be stale','message'=>'The last local sync is more than 48 hours old.','latest_data_date'=>$latest];
+    return ['level'=>'healthy','label'=>'Healthy','message'=>'OAuth, property selection and local synchronization are available.','latest_data_date'=>$latest];
+}
+
+function googlehub_ga4_test_connection(int $businessId): array
+{
+    $propertyId = googlehub_ga4_property_id($businessId);
+    $response = googlehub_api_post($businessId, 'ga4',
+        'https://analyticsdata.googleapis.com/v1beta/properties/' . rawurlencode($propertyId) . ':runReport',
+        ['dateRanges'=>[['startDate'=>'yesterday','endDate'=>'yesterday']],'metrics'=>[['name'=>'sessions']],'limit'=>1]
+    );
+    return ['success'=>true,'property_id'=>$propertyId,'row_count'=>(int)($response['rowCount'] ?? 0)];
+}
+
+function googlehub_ga4_preferences(int $businessId): array
+{
+    try {
+        $stmt = db()->prepare('SELECT * FROM google_ga4_preferences WHERE business_id=? LIMIT 1');
+        $stmt->execute([$businessId]);
+        return $stmt->fetch() ?: ['business_id'=>$businessId,'key_events_json'=>'[]'];
+    } catch (Throwable $e) {
+        error_log('[GA4 preferences] '.$e->getMessage());
+        return ['business_id'=>$businessId,'key_events_json'=>'[]'];
+    }
+}
+
+function googlehub_ga4_selected_key_events(int $businessId): array
+{
+    $events = json_decode((string)(googlehub_ga4_preferences($businessId)['key_events_json'] ?? '[]'), true);
+    if (!is_array($events)) return [];
+    $clean=[];
+    foreach ($events as $event) {
+        $event=trim((string)$event);
+        if ($event!=='' && preg_match('/^[A-Za-z0-9_:\-.]{1,120}$/',$event)) $clean[]=$event;
+    }
+    return array_values(array_unique($clean));
+}
+
+function googlehub_ga4_save_key_events(int $businessId, array $events): void
+{
+    $clean=[];
+    foreach ($events as $event) {
+        $event=trim((string)$event);
+        if ($event==='') continue;
+        if (!preg_match('/^[A-Za-z0-9_:\-.]{1,120}$/',$event)) throw new RuntimeException('One selected GA4 event name is invalid.');
+        $clean[]=$event;
+    }
+    $clean=array_slice(array_values(array_unique($clean)),0,25);
+    db()->prepare("INSERT INTO google_ga4_preferences (business_id,key_events_json,created_at,updated_at) VALUES (?,?,NOW(),NOW()) ON DUPLICATE KEY UPDATE key_events_json=VALUES(key_events_json),updated_at=NOW()")
+        ->execute([$businessId,json_encode($clean,JSON_UNESCAPED_SLASHES)]);
+}
+
+function googlehub_ga4_available_key_events(int $businessId, int $days = 30, string $timezone = 'UTC'): array
+{
+    [$start,$end]=googlehub_ga4_period_dates($days,false,$timezone);
+    $propertyId=googlehub_ga4_property_id($businessId);
+    $response=googlehub_api_post($businessId,'ga4',
+        'https://analyticsdata.googleapis.com/v1beta/properties/'.rawurlencode($propertyId).':runReport',
+        [
+            'dateRanges'=>[['startDate'=>$start,'endDate'=>$end]],
+            'dimensions'=>[['name'=>'eventName']],
+            'metrics'=>[['name'=>'keyEvents'],['name'=>'eventCount'],['name'=>'activeUsers']],
+            'orderBys'=>[['metric'=>['metricName'=>'keyEvents'],'desc'=>true]],
+            'limit'=>100,
+        ]
+    );
+    $headers=[];
+    foreach ((array)($response['metricHeaders'] ?? []) as $i=>$h) $headers[$i]=(string)($h['name'] ?? '');
+    $rows=[];
+    foreach ((array)($response['rows'] ?? []) as $row) {
+        if (!is_array($row)) continue;
+        $event=trim((string)($row['dimensionValues'][0]['value'] ?? ''));
+        if ($event==='') continue;
+        $metrics=[];
+        foreach ((array)($row['metricValues'] ?? []) as $i=>$v) { $name=(string)($headers[$i] ?? ''); if($name!=='') $metrics[$name]=(float)($v['value'] ?? 0); }
+        if ((float)($metrics['keyEvents'] ?? 0)<=0) continue;
+        $rows[]=['event_name'=>$event,'key_events'=>(float)($metrics['keyEvents'] ?? 0),'event_count'=>(float)($metrics['eventCount'] ?? 0),'active_users'=>(float)($metrics['activeUsers'] ?? 0)];
+    }
+    return $rows;
+}
+
+function googlehub_sync_history_log(int $businessId,string $service,string $action,string $status,int $rowsSynced=0,?string $message=null): void
+{
+    try {
+        db()->prepare('INSERT INTO google_sync_history (business_id,service,action_name,status,rows_synced,message,created_by,created_at) VALUES (?,?,?,?,?,?,?,NOW())')
+            ->execute([$businessId,$service,$action,$status,$rowsSynced,$message!==null?substr($message,0,1000):null,auth_id()?(int)auth_id():null]);
+    } catch (Throwable $e) { error_log('[Google sync history] '.$e->getMessage()); }
+}
+
+function googlehub_sync_history(int $businessId,string $service='ga4',int $limit=10): array
+{
+    try {
+        $limit=max(1,min(50,$limit));
+        $stmt=db()->prepare("SELECT h.*,u.name actor_name FROM google_sync_history h LEFT JOIN users u ON u.id=h.created_by WHERE h.business_id=? AND h.service=? ORDER BY h.created_at DESC,h.id DESC LIMIT {$limit}");
+        $stmt->execute([$businessId,$service]);
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable $e) { error_log('[Google sync history list] '.$e->getMessage()); return []; }
+}
+
+function googlehub_ga4_saved_views(int $businessId): array
+{
+    try {
+        $stmt=db()->prepare('SELECT v.*,u.name created_by_name FROM google_ga4_saved_views v LEFT JOIN users u ON u.id=v.created_by WHERE v.business_id=? ORDER BY v.created_at DESC,v.id DESC');
+        $stmt->execute([$businessId]);
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable $e) { error_log('[GA4 saved views] '.$e->getMessage()); return []; }
+}
+
+function googlehub_ga4_save_view(int $businessId,string $name,int $days,string $section): void
+{
+    $name=trim($name);
+    if (mb_strlen($name)<2 || mb_strlen($name)>80) throw new RuntimeException('Saved report name must contain 2 to 80 characters.');
+    $days=googlehub_ga4_allowed_days($days);
+    $allowed=['trend','acquisition','content','audience','events','ecommerce','pdf-compare','explorer'];
+    if(!in_array($section,$allowed,true)) $section='trend';
+    db()->prepare('INSERT INTO google_ga4_saved_views (business_id,view_name,period_days,section_anchor,created_by,created_at,updated_at) VALUES (?,?,?,?,?,NOW(),NOW()) ON DUPLICATE KEY UPDATE period_days=VALUES(period_days),section_anchor=VALUES(section_anchor),updated_at=NOW()')
+        ->execute([$businessId,$name,$days,$section,(int)auth_id()]);
+}
+
+function googlehub_ga4_delete_view(int $businessId,int $viewId): void
+{
+    if($viewId<1) throw new RuntimeException('Saved report was not found.');
+    db()->prepare('DELETE FROM google_ga4_saved_views WHERE id=? AND business_id=?')->execute([$viewId,$businessId]);
+}
+
+function googlehub_ga4_dashboard_url(int $days,string $section='trend',string $timezone='UTC'): string
+{
+    [$start,$end]=googlehub_ga4_period_dates($days,false,$timezone);
+    $allowed=['trend','acquisition','content','audience','events','ecommerce','pdf-compare','explorer'];
+    if(!in_array($section,$allowed,true)) $section='trend';
+    return url('business-ga4-api-data',['fetch'=>1,'period_start'=>$start,'period_end'=>$end]).'#'.$section;
+}
+
+function googlehub_ga4_latest_pdf_upload(int $businessId): ?array
+{
+    try {
+        $stmt=db()->prepare("SELECT ae.id,ae.period_start,ae.period_end,ae.frequency,ae.validation_status,ae.validation_score,ae.created_at,u.name uploaded_by_name FROM ai_extractions ae LEFT JOIN users u ON u.id=ae.created_by WHERE ae.business_id=? AND ae.source_code='ga4' AND ae.extracted_json IS NOT NULL AND ae.extracted_json<>'' ORDER BY ae.created_at DESC,ae.id DESC LIMIT 1");
+        $stmt->execute([$businessId]);
+        $row=$stmt->fetch();
+        return is_array($row)?$row:null;
+    } catch(Throwable $e){ error_log('[GA4 latest PDF] '.$e->getMessage()); return null; }
+}
+
+function googlehub_ga4_store_pdf_comparison(int $businessId,array $comparison): void
+{
+    if(empty($comparison['success'])) return;
+    try {
+        db()->prepare('INSERT INTO google_ga4_pdf_comparison_runs (business_id,extraction_id,property_id,period_start,period_end,match_percent,comparable_metrics,matched_metrics,review_metrics,comparison_json,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW())')
+            ->execute([$businessId,(int)($comparison['saved_upload_id'] ?? 0) ?: null,(string)($comparison['property_id'] ?? ''),(string)($comparison['period_start'] ?? ''),(string)($comparison['period_end'] ?? ''),(float)($comparison['match_percent'] ?? 0),(int)($comparison['comparable_metrics'] ?? 0),(int)($comparison['matched_metrics'] ?? 0),(int)($comparison['review_metrics'] ?? 0),json_encode($comparison,JSON_UNESCAPED_SLASHES),auth_id()?(int)auth_id():null]);
+    } catch(Throwable $e){ error_log('[GA4 comparison history] '.$e->getMessage()); }
+}
+
+function googlehub_ga4_latest_pdf_comparison(int $businessId): ?array
+{
+    try {
+        $stmt=db()->prepare('SELECT * FROM google_ga4_pdf_comparison_runs WHERE business_id=? ORDER BY created_at DESC,id DESC LIMIT 1');
+        $stmt->execute([$businessId]);
+        $row=$stmt->fetch();
+        return is_array($row)?$row:null;
+    } catch(Throwable $e){ error_log('[GA4 latest comparison] '.$e->getMessage()); return null; }
+}
+
+function googlehub_ga4_smart_insights(array $comparison,array $keyEvents,?array $latestPdfComparison=null): array
+{
+    $insights=[];
+    foreach ([['sessions','Sessions',5.0],['newUsers','New users',5.0],['keyEvents','Key events',3.0],['totalRevenue','Revenue',3.0]] as [$key,$label,$threshold]) {
+        $change=$comparison[$key]['change_percent'] ?? null;
+        if($change===null || abs((float)$change)<$threshold) continue;
+        $positive=(float)$change>0;
+        $insights[]=['tone'=>$positive?'positive':'negative','title'=>$label.($positive?' increased':' decreased'),'body'=>$label.' is '.number_format(abs((float)$change),1).'% '.($positive?'higher':'lower').' than the previous equivalent period.'];
+    }
+    if($keyEvents){$top=$keyEvents[0];$insights[]=['tone'=>'neutral','title'=>'Top key event','body'=>(string)($top['event_name'] ?? 'Key event').' generated '.number_format((float)($top['key_events'] ?? 0),0).' key event(s) in this period.'];}
+    if($latestPdfComparison){$alignment=(float)($latestPdfComparison['match_percent'] ?? 0);$insights[]=['tone'=>$alignment>=90?'positive':($alignment>=70?'neutral':'negative'),'title'=>'PDF / API alignment','body'=>'The latest saved GA4 PDF comparison is '.number_format($alignment,1).'% aligned with the API.'];}
+    if(!$insights)$insights[]=['tone'=>'neutral','title'=>'Performance is stable','body'=>'No large period-over-period movement was detected in the primary GA4 metrics.'];
+    return array_slice($insights,0,4);
+}
+
+function googlehub_ga4_control_center(int $businessId,array $business,?array $connection,int $days=30): array
+{
+    $days=googlehub_ga4_allowed_days($days);
+    $timezone=(string)($business['timezone'] ?? 'UTC');
+    $model=[
+        'days'=>$days,
+        'health'=>googlehub_ga4_connection_health($businessId,$connection),
+        'current'=>null,'previous'=>null,'comparison'=>[],'property_details'=>[],
+        'property_error'=>null,'live_error'=>null,'key_events_error'=>null,
+        'available_key_events'=>[],'selected_key_events'=>googlehub_ga4_selected_key_events($businessId),
+        'trend'=>googlehub_recent_ga4($businessId,$days),
+        'sync_history'=>googlehub_sync_history($businessId,'ga4',10),
+        'saved_views'=>googlehub_ga4_saved_views($businessId),
+        'latest_pdf'=>googlehub_ga4_latest_pdf_upload($businessId),
+        'latest_pdf_comparison'=>googlehub_ga4_latest_pdf_comparison($businessId),
+        'insights'=>[],
+    ];
+    if(!$connection || (string)($connection['status'] ?? '')!=='connected' || empty($connection['selected_resource_id'])) return $model;
+    try{$model['property_details']=googlehub_ga4_property_details($businessId);}catch(Throwable $e){$model['property_error']=$e->getMessage();}
+    try{
+        $model['current']=googlehub_ga4_live_summary($businessId,$days,false,$timezone);
+        $model['previous']=googlehub_ga4_live_summary($businessId,$days,true,$timezone);
+        $model['comparison']=googlehub_ga4_comparison_model($model['current'],$model['previous']);
+    }catch(Throwable $e){$model['live_error']=$e->getMessage();}
+    try{$model['available_key_events']=googlehub_ga4_available_key_events($businessId,$days,$timezone);}catch(Throwable $e){$model['key_events_error']=$e->getMessage();}
+    $model['insights']=googlehub_ga4_smart_insights($model['comparison'],$model['available_key_events'],$model['latest_pdf_comparison']);
+    return $model;
+}
+
+function googlehub_hub_model(int $businessId, int $ga4Days = 30): array
 {
     $stmt = db()->prepare('SELECT * FROM businesses WHERE id=? LIMIT 1');
     $stmt->execute([$businessId]);
     $business = $stmt->fetch();
-    if (!$business) {
-        throw new RuntimeException('Business not found.');
-    }
+    if (!$business) throw new RuntimeException('Business not found.');
+
+    $ga4 = googlehub_connection($businessId, 'ga4');
+    $gbp = googlehub_connection($businessId, 'gbp');
 
     return [
         'business' => $business,
-        'ga4' => googlehub_connection($businessId, 'ga4'),
-        'gbp' => googlehub_connection($businessId, 'gbp'),
+        'ga4' => $ga4,
+        'gbp' => $gbp,
         'ga4_summary' => googlehub_ga4_summary($businessId, 30),
         'gbp_summary' => googlehub_gbp_summary($businessId, 30),
         'ga4_daily' => googlehub_recent_ga4($businessId, 30),
         'gbp_daily' => googlehub_recent_gbp($businessId, 30),
+        'ga4_control' => googlehub_ga4_control_center($businessId, $business, $ga4, $ga4Days),
         'google_identity' => googlehub_identity_for_user((int)auth_id()),
     ];
 }
