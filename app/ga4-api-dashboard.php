@@ -1799,3 +1799,386 @@ if (!function_exists('ga4dash_compare_pdf_upload')) {
     }
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| SAVED GA4 PDF UPLOADS
+|--------------------------------------------------------------------------
+|
+| Existing GA4 PDF uploads are already normalized into ai_extractions.
+| The comparison page reads those saved records directly so the user does
+| not have to upload the same PDF again.
+|
+|--------------------------------------------------------------------------
+*/
+
+if (!function_exists('ga4dash_saved_pdf_uploads')) {
+    function ga4dash_saved_pdf_uploads(
+        int $businessId,
+        int $limit = 250
+    ): array {
+        $limit = max(1, min(500, $limit));
+
+        $stmt = db()->prepare(
+            "
+            SELECT
+                ae.id,
+                ae.business_id,
+                ae.source_code,
+                ae.period_start,
+                ae.period_end,
+                ae.frequency,
+                ae.extracted_json,
+                ae.notes,
+                ae.status,
+                ae.validation_status,
+                ae.validation_score,
+                ae.created_by,
+                ae.created_at,
+                u.name AS uploaded_by_name
+            FROM ai_extractions ae
+            LEFT JOIN users u
+                ON u.id = ae.created_by
+            WHERE ae.business_id = ?
+              AND ae.source_code = 'ga4'
+              AND ae.extracted_json IS NOT NULL
+              AND ae.extracted_json <> ''
+            ORDER BY ae.created_at DESC, ae.id DESC
+            LIMIT {$limit}
+            "
+        );
+
+        $stmt->execute([$businessId]);
+
+        $rows = $stmt->fetchAll();
+
+        return is_array($rows) ? $rows : [];
+    }
+}
+
+if (!function_exists('ga4dash_saved_pdf_upload')) {
+    function ga4dash_saved_pdf_upload(
+        int $businessId,
+        int $uploadId
+    ): ?array {
+        if ($uploadId < 1) {
+            return null;
+        }
+
+        $stmt = db()->prepare(
+            "
+            SELECT
+                ae.*,
+                u.name AS uploaded_by_name
+            FROM ai_extractions ae
+            LEFT JOIN users u
+                ON u.id = ae.created_by
+            WHERE ae.id = ?
+              AND ae.business_id = ?
+              AND ae.source_code = 'ga4'
+            LIMIT 1
+            "
+        );
+
+        $stmt->execute([
+            $uploadId,
+            $businessId,
+        ]);
+
+        $row = $stmt->fetch();
+
+        return is_array($row) ? $row : null;
+    }
+}
+
+if (!function_exists('ga4dash_saved_pdf_group_label')) {
+    function ga4dash_saved_pdf_group_label(
+        string $createdAt
+    ): string {
+        $timestamp = strtotime($createdAt);
+
+        return $timestamp === false
+            ? 'Unknown upload date'
+            : date('F j, Y', $timestamp);
+    }
+}
+
+if (!function_exists('ga4dash_saved_pdf_option_label')) {
+    function ga4dash_saved_pdf_option_label(
+        array $row
+    ): string {
+        $createdAt =
+            (string)($row['created_at'] ?? '');
+
+        $timestamp = strtotime($createdAt);
+
+        $time =
+            $timestamp === false
+                ? ''
+                : date('g:i A', $timestamp);
+
+        $periodStart =
+            (string)($row['period_start'] ?? '');
+
+        $periodEnd =
+            (string)($row['period_end'] ?? '');
+
+        $frequency =
+            ucfirst(
+                (string)($row['frequency'] ?? 'custom')
+            );
+
+        $parts = [];
+
+        if ($time !== '') {
+            $parts[] = $time;
+        }
+
+        if (
+            $periodStart !== ''
+            && $periodEnd !== ''
+        ) {
+            $parts[] =
+                $periodStart
+                . ' → '
+                . $periodEnd;
+        }
+
+        if ($frequency !== '') {
+            $parts[] = $frequency;
+        }
+
+        $parts[] =
+            'Upload #'
+            . (int)($row['id'] ?? 0);
+
+        return implode(' · ', $parts);
+    }
+}
+
+if (!function_exists('ga4dash_compare_saved_pdf_extraction')) {
+    function ga4dash_compare_saved_pdf_extraction(
+        int $businessId,
+        array $business,
+        ?array $connection,
+        array $savedUpload,
+        array $dashboard
+    ): array {
+        if (!$connection) {
+            throw new RuntimeException(
+                'Connect Google Analytics before comparing a saved PDF.'
+            );
+        }
+
+        if (
+            (int)($savedUpload['business_id'] ?? 0)
+            !== $businessId
+            || (string)($savedUpload['source_code'] ?? '')
+            !== 'ga4'
+        ) {
+            throw new RuntimeException(
+                'The selected GA4 upload does not belong to this business.'
+            );
+        }
+
+        $decoded = json_decode(
+            (string)($savedUpload['extracted_json'] ?? ''),
+            true
+        );
+
+        if (!is_array($decoded) || !$decoded) {
+            throw new RuntimeException(
+                'The selected GA4 upload does not contain saved extracted data.'
+            );
+        }
+
+        /*
+         * The stored extracted_json is already PDF-derived data.
+         * Wrap it in summary/values nodes so the generic metric matcher can
+         * reuse the same alias logic as the manual PDF comparator.
+         */
+        $pdfBundle = [
+            'summary' => $decoded,
+            'values' => $decoded,
+            'metadata' => [
+                'upload_id' =>
+                    (int)($savedUpload['id'] ?? 0),
+                'period_start' =>
+                    (string)($savedUpload['period_start'] ?? ''),
+                'period_end' =>
+                    (string)($savedUpload['period_end'] ?? ''),
+                'frequency' =>
+                    (string)($savedUpload['frequency'] ?? ''),
+                'created_at' =>
+                    (string)($savedUpload['created_at'] ?? ''),
+            ],
+        ];
+
+        $currencyCode =
+            ga4dash_currency_code($connection);
+
+        $rows = [];
+        $comparable = 0;
+        $matched = 0;
+        $review = 0;
+        $notFound = 0;
+
+        foreach (
+            ga4dash_compare_metric_definitions()
+            as $apiMetric => $definition
+        ) {
+            $type =
+                (string)($definition['type'] ?? 'count');
+
+            $apiValue =
+                ga4dash_compare_api_metric(
+                    $dashboard,
+                    $apiMetric,
+                    $type
+                );
+
+            $pdfMetric =
+                ga4dash_compare_pdf_metric(
+                    $pdfBundle,
+                    $definition
+                );
+
+            $pdfValue =
+                $pdfMetric['value'] ?? null;
+
+            $status = 'unavailable';
+            $delta = null;
+            $deltaPercent = null;
+            $tolerance = null;
+
+            if (
+                $apiValue !== null
+                && $pdfValue !== null
+            ) {
+                $comparable++;
+
+                $delta =
+                    $pdfValue - $apiValue;
+
+                $deltaPercent =
+                    abs($apiValue) > 0.000001
+                        ? ($delta / $apiValue * 100.0)
+                        : (
+                            abs($pdfValue) <= 0.000001
+                                ? 0.0
+                                : null
+                        );
+
+                $tolerance =
+                    ga4dash_compare_tolerance(
+                        $type,
+                        $apiValue
+                    );
+
+                if (abs($delta) <= $tolerance) {
+                    $status = 'match';
+                    $matched++;
+                } else {
+                    $status = 'review';
+                    $review++;
+                }
+            } elseif ($pdfValue === null) {
+                $notFound++;
+            }
+
+            $rows[] = [
+                'api_metric' => $apiMetric,
+                'label' =>
+                    (string)$definition['label'],
+                'type' => $type,
+                'api_value' => $apiValue,
+                'pdf_value' => $pdfValue,
+                'api_display' =>
+                    ga4dash_compare_format_value(
+                        $type,
+                        $apiValue,
+                        $currencyCode
+                    ),
+                'pdf_display' =>
+                    ga4dash_compare_format_value(
+                        $type,
+                        $pdfValue,
+                        $currencyCode
+                    ),
+                'delta' => $delta,
+                'delta_display' =>
+                    $delta === null
+                        ? '—'
+                        : ga4dash_compare_format_value(
+                            $type,
+                            $delta,
+                            $currencyCode
+                        ),
+                'delta_percent' => $deltaPercent,
+                'tolerance' => $tolerance,
+                'status' => $status,
+                'pdf_source_path' =>
+                    (string)($pdfMetric['path'] ?? ''),
+            ];
+        }
+
+        $matchPercent =
+            $comparable > 0
+                ? round(
+                    ($matched / $comparable) * 100,
+                    1
+                )
+                : 0.0;
+
+        $overallStatus =
+            $comparable < 1
+                ? 'unavailable'
+                : (
+                    $review === 0
+                        ? 'verified'
+                        : 'review'
+                );
+
+        return [
+            'success' => true,
+            'comparison_source' =>
+                'saved_ga4_pdf_extraction',
+            'saved_upload_id' =>
+                (int)($savedUpload['id'] ?? 0),
+            'uploaded_at' =>
+                (string)($savedUpload['created_at'] ?? ''),
+            'uploaded_by' =>
+                (string)($savedUpload['uploaded_by_name'] ?? ''),
+            'frequency' =>
+                (string)($savedUpload['frequency'] ?? ''),
+            'validation_status' =>
+                (string)($savedUpload['validation_status'] ?? ''),
+            'business_id' => $businessId,
+            'business_name' =>
+                (string)($business['name'] ?? ''),
+            'property_id' =>
+                (string)(
+                    $connection['selected_resource_id']
+                    ?? ''
+                ),
+            'property_name' =>
+                (string)(
+                    $connection['selected_resource_name']
+                    ?? ''
+                ),
+            'period_start' =>
+                (string)($savedUpload['period_start'] ?? ''),
+            'period_end' =>
+                (string)($savedUpload['period_end'] ?? ''),
+            'currency_code' => $currencyCode,
+            'metrics' => $rows,
+            'comparable_metrics' => $comparable,
+            'matched_metrics' => $matched,
+            'review_metrics' => $review,
+            'pdf_metrics_not_found' => $notFound,
+            'match_percent' => $matchPercent,
+            'overall_status' => $overallStatus,
+        ];
+    }
+}
+

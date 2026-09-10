@@ -160,6 +160,34 @@
         }, 3200);
     }
 
+
+    function savedPdfAutoCompare() {
+        var select =
+            document.querySelector(
+                '[data-ga4-saved-pdf-select]'
+            );
+
+        var form =
+            document.querySelector(
+                '[data-ga4-saved-pdf-form]'
+            );
+
+        if (!select || !form) return;
+
+        select.addEventListener(
+            'change',
+            function () {
+                if (!select.value) return;
+
+                /*
+                 * The user only selects a stored upload.
+                 * Its saved period is used automatically server-side.
+                 */
+                form.submit();
+            }
+        );
+    }
+
     function drawChart() {
         var canvas =
             document.getElementById(
@@ -462,6 +490,7 @@
             fieldSearch();
             selectionLimits();
             fetchSuccessToast();
+            savedPdfAutoCompare();
             drawChart();
         }
     );

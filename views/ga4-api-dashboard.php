@@ -9,6 +9,10 @@ $metadata = is_array($metadata ?? null) ? $metadata : [
 ];
 $customReport = is_array($customReport ?? null) ? $customReport : null;
 $pdfComparison = is_array($pdfComparison ?? null) ? $pdfComparison : null;
+$savedGa4PdfUploads = is_array($savedGa4PdfUploads ?? null)
+    ? $savedGa4PdfUploads
+    : [];
+$selectedSavedPdfId = (int)($selectedSavedPdfId ?? 0);
 
 $periodStart = (string)($periodStart ?? '');
 $periodEnd = (string)($periodEnd ?? '');
@@ -320,6 +324,18 @@ $propertyName =
 
 $googleEmail =
     (string)($connection['google_email'] ?? '');
+
+$savedPdfGroups = [];
+
+foreach ($savedGa4PdfUploads as $savedUpload) {
+    $groupLabel =
+        ga4dash_saved_pdf_group_label(
+            (string)($savedUpload['created_at'] ?? '')
+        );
+
+    $savedPdfGroups[$groupLabel][] =
+        $savedUpload;
+}
 
 $dailyChart = [];
 
@@ -913,9 +929,11 @@ $fetchSucceeded =
                     <h2>Compare GA4 API with PDF</h2>
 
                     <p>
-                        Upload the GA4 PDF for the same reporting period.
-                        Aesthetic Intel compares the PDF against the live
-                        Google Analytics property currently connected to
+                        Choose a GA4 PDF upload already saved for this
+                        business. Aesthetic Intel automatically uses that
+                        upload's reporting period and compares its saved
+                        PDF-derived values against the live Google Analytics
+                        property currently connected to
                         <strong><?= ga4dash_h(
                             (string)($business['name'] ?? 'this business')
                         ) ?></strong>.
@@ -954,73 +972,118 @@ $fetchSucceeded =
                 </div>
             </div>
 
-            <form
-                method="post"
-                enctype="multipart/form-data"
-                action="<?= ga4dash_h(
-                    url('business-ga4-api-data')
-                ) ?>#pdf-compare"
-                class="ga4-compare-form"
-            >
-                <?= csrf_field() ?>
-
-                <input
-                    type="hidden"
-                    name="action"
-                    value="compare_pdf"
+            <?php if (!$savedGa4PdfUploads): ?>
+                <div class="ga4-api-empty">
+                    <strong>No saved GA4 PDF uploads yet.</strong>
+                    <span>
+                        Upload a GA4 PDF through the existing
+                        <a
+                            href="<?= ga4dash_h(
+                                url(
+                                    'business-ai-extraction',
+                                    ['source' => 'ga4']
+                                )
+                            ) ?>"
+                        >
+                            GA4 PDF Upload
+                        </a>
+                        page first. Saved GA4 uploads will then appear here
+                        automatically.
+                    </span>
+                </div>
+            <?php else: ?>
+                <form
+                    method="post"
+                    action="<?= ga4dash_h(
+                        url('business-ga4-api-data')
+                    ) ?>#pdf-compare"
+                    class="ga4-compare-form"
+                    data-ga4-saved-pdf-form
                 >
-
-                <input
-                    type="hidden"
-                    name="period_start"
-                    value="<?= ga4dash_h($periodStart) ?>"
-                >
-
-                <input
-                    type="hidden"
-                    name="period_end"
-                    value="<?= ga4dash_h($periodEnd) ?>"
-                >
-
-                <label class="ga4-pdf-file-field">
-                    <span>GA4 PDF report(s)</span>
+                    <?= csrf_field() ?>
 
                     <input
-                        type="file"
-                        name="ga4_pdfs[]"
-                        accept="application/pdf,.pdf"
-                        multiple
-                        required
+                        type="hidden"
+                        name="action"
+                        value="compare_saved_pdf"
                     >
 
-                    <small>
-                        Use the same date range shown above. You can upload
-                        multiple GA4 PDFs when the reporting data is split
-                        across more than one exported report.
-                    </small>
-                </label>
+                    <label class="ga4-saved-pdf-picker">
+                        <span>Choose saved GA4 PDF upload</span>
 
-                <div class="ga4-compare-actions">
-                    <button
-                        type="submit"
-                        class="ga4-btn ga4-btn-primary"
-                    >
-                        Compare PDF with live API
-                    </button>
+                        <select
+                            name="saved_pdf_id"
+                            required
+                            data-ga4-saved-pdf-select
+                        >
+                            <option value="">
+                                Select an uploaded GA4 report…
+                            </option>
 
-                    <a
-                        class="ga4-btn ga4-btn-secondary"
-                        href="<?= ga4dash_h(
-                            url(
-                                'business-ai-extraction',
-                                ['source' => 'ga4']
-                            )
-                        ) ?>"
-                    >
-                        Open existing GA4 PDF Upload
-                    </a>
-                </div>
-            </form>
+                            <?php foreach (
+                                $savedPdfGroups
+                                as $groupLabel => $groupRows
+                            ): ?>
+                                <optgroup
+                                    label="<?= ga4dash_h(
+                                        (string)$groupLabel
+                                    ) ?>"
+                                >
+                                    <?php foreach (
+                                        $groupRows
+                                        as $savedUpload
+                                    ): ?>
+                                        <?php
+                                        $uploadId =
+                                            (int)($savedUpload['id'] ?? 0);
+                                        ?>
+                                        <option
+                                            value="<?= $uploadId ?>"
+                                            <?= $selectedSavedPdfId === $uploadId
+                                                ? 'selected'
+                                                : ''
+                                            ?>
+                                        >
+                                            <?= ga4dash_h(
+                                                ga4dash_saved_pdf_option_label(
+                                                    $savedUpload
+                                                )
+                                            ) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <small>
+                            Uploads are grouped by upload date. Select one and
+                            Aesthetic Intel automatically fetches live GA4 data
+                            for that saved report's exact period.
+                        </small>
+                    </label>
+
+                    <div class="ga4-compare-actions">
+                        <button
+                            type="submit"
+                            class="ga4-btn ga4-btn-primary"
+                        >
+                            Compare selected upload
+                        </button>
+
+                        <a
+                            class="ga4-btn ga4-btn-secondary"
+                            href="<?= ga4dash_h(
+                                url(
+                                    'business-ai-extraction',
+                                    ['source' => 'ga4']
+                                )
+                            ) ?>"
+                        >
+                            Open GA4 PDF Upload
+                        </a>
+                    </div>
+                </form>
+            <?php endif; ?>
 
             <?php if ($pdfComparison): ?>
                 <?php if (empty($pdfComparison['success'])): ?>
@@ -1151,15 +1214,31 @@ $fetchSucceeded =
                         </span>
                     </div>
 
-                    <?php if (!empty($pdfComparison['files'])): ?>
+                    <?php if (!empty($pdfComparison['saved_upload_id'])): ?>
                         <div class="ga4-compare-files">
-                            <strong>Compared PDF(s):</strong>
-                            <?= ga4dash_h(
-                                implode(
-                                    ', ',
-                                    (array)$pdfComparison['files']
-                                )
-                            ) ?>
+                            <strong>Saved upload:</strong>
+                            #<?= (int)$pdfComparison['saved_upload_id'] ?>
+
+                            <?php if (!empty($pdfComparison['uploaded_at'])): ?>
+                                · Uploaded
+                                <?= ga4dash_h(
+                                    date(
+                                        'M j, Y g:i A',
+                                        strtotime(
+                                            (string)$pdfComparison[
+                                                'uploaded_at'
+                                            ]
+                                        )
+                                    )
+                                ) ?>
+                            <?php endif; ?>
+
+                            <?php if (!empty($pdfComparison['uploaded_by'])): ?>
+                                · by
+                                <?= ga4dash_h(
+                                    (string)$pdfComparison['uploaded_by']
+                                ) ?>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
 
@@ -1564,9 +1643,10 @@ $fetchSucceeded =
             <strong>PDF upload remains intact.</strong>
 
             Your existing GA4 PDF upload route has not been changed.
-            The PDF Compare section is an additional validation layer that
-            compares an uploaded GA4 PDF against the currently selected
-            business's live Google Analytics API data.
+            The PDF Compare section reads previously saved GA4 PDF
+            uploads from Aesthetic Intel and compares the selected upload
+            against the currently selected business's live Google Analytics
+            API data.
         </section>
 
         <script

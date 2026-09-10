@@ -635,3 +635,31 @@
         grid-template-columns:1fr;
     }
 }
+
+
+.ga4-saved-pdf-picker{
+    display:grid;
+    gap:8px;
+}
+.ga4-saved-pdf-picker>span{
+    color:#777880;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+}
+.ga4-saved-pdf-picker select{
+    width:100%;
+    min-height:46px;
+    padding:0 12px;
+    border:1px solid #d9dae0;
+    border-radius:11px;
+    background:#fff;
+    color:#1d1e22;
+    font:inherit;
+    font-weight:650;
+}
+.ga4-saved-pdf-picker small{
+    color:#86878e;
+    line-height:1.5;
+}

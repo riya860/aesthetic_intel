@@ -281,11 +281,42 @@ try{
      * normal dashboard/date-range fetch.
      *
      * POST:
-     * advanced GA4 Data Explorer report.
+     * advanced Data Explorer or saved-PDF comparison.
+     *
+     * When comparing a saved GA4 PDF upload, its saved reporting period is
+     * authoritative. The user only chooses the upload from the dropdown.
      */
     $rangeInput=is_post()
      ? $_POST
      : $_GET;
+
+    $selectedSavedPdfId=
+     is_post()
+     && (string)($_POST['action']??'')==='compare_saved_pdf'
+      ? (int)($_POST['saved_pdf_id']??0)
+      : 0;
+
+    $selectedSavedPdf=null;
+
+    if($selectedSavedPdfId>0){
+     $selectedSavedPdf=
+      ga4dash_saved_pdf_upload(
+       $businessId,
+       $selectedSavedPdfId
+      );
+
+     if(!$selectedSavedPdf){
+      throw new RuntimeException(
+       'The selected saved GA4 PDF upload was not found for this business.'
+      );
+     }
+
+     $rangeInput['period_start']=
+      (string)$selectedSavedPdf['period_start'];
+
+     $rangeInput['period_end']=
+      (string)$selectedSavedPdf['period_end'];
+    }
 
     [$periodStart,$periodEnd]=ga4dash_period(
      $rangeInput,
@@ -300,6 +331,11 @@ try{
     ];
     $customReport=null;
     $pdfComparison=null;
+
+    $savedGa4PdfUploads=
+     ga4dash_saved_pdf_uploads(
+      $businessId
+     );
 
     if($connection){
 
@@ -373,32 +409,36 @@ try{
        }
       }
 
-      if($action==='compare_pdf'){
+      if($action==='compare_saved_pdf'){
        try{
-        $pdfComparison=ga4dash_compare_pdf_upload(
-         $businessId,
-         $business,
-         $connection,
-         $periodStart,
-         $periodEnd,
-         $dashboard,
-         $_FILES['ga4_pdfs']??null
-        );
+        if(!$selectedSavedPdf){
+         throw new RuntimeException(
+          'Choose one saved GA4 PDF upload.'
+         );
+        }
+
+        $pdfComparison=
+         ga4dash_compare_saved_pdf_extraction(
+          $businessId,
+          $business,
+          $connection,
+          $selectedSavedPdf,
+          $dashboard
+         );
 
         audit(
-         'ga4_pdf_live_api_compared',
+         'ga4_saved_pdf_live_api_compared',
          [
+          'saved_upload_id'=>
+           (int)(
+            $pdfComparison['saved_upload_id']
+            ?? 0
+           ),
           'property_id'=>
-           $pdfComparison['property_id']??null,
+           $pdfComparison['property_id']
+           ?? null,
           'period_start'=>$periodStart,
           'period_end'=>$periodEnd,
-          'files'=>
-           count(
-            (array)(
-             $pdfComparison['files']
-             ?? []
-            )
-           ),
           'comparable_metrics'=>
            (int)(
             $pdfComparison['comparable_metrics']
@@ -425,10 +465,38 @@ try{
 
        }catch(Throwable $pdfError){
         error_log(
-         '[GA4 PDF vs Live API] '
+         '[GA4 Saved PDF vs Live API] '
          .$pdfError->getMessage()
         );
 
+        $pdfComparison=[
+         'success'=>false,
+         'error'=>$pdfError->getMessage(),
+         'business_id'=>$businessId,
+         'business_name'=>
+          (string)($business['name']??''),
+         'period_start'=>$periodStart,
+         'period_end'=>$periodEnd,
+        ];
+       }
+      }
+
+      /*
+       * Legacy/manual comparison is kept only for backwards compatibility.
+       * The production frontend now uses saved database uploads.
+       */
+      if($action==='compare_pdf'){
+       try{
+        $pdfComparison=ga4dash_compare_pdf_upload(
+         $businessId,
+         $business,
+         $connection,
+         $periodStart,
+         $periodEnd,
+         $dashboard,
+         $_FILES['ga4_pdfs']??null
+        );
+       }catch(Throwable $pdfError){
         $pdfComparison=[
          'success'=>false,
          'error'=>$pdfError->getMessage(),
@@ -453,6 +521,8 @@ try{
       'metadata'=>$metadata,
       'customReport'=>$customReport,
       'pdfComparison'=>$pdfComparison,
+      'savedGa4PdfUploads'=>$savedGa4PdfUploads,
+      'selectedSavedPdfId'=>$selectedSavedPdfId,
       'periodStart'=>$periodStart,
       'periodEnd'=>$periodEnd,
       'currencyCode'=>ga4dash_currency_code(
