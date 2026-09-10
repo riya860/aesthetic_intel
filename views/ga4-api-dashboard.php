@@ -86,7 +86,21 @@ if (!function_exists('ga4dash_number')) {
         string|int|float|null $value,
         string $currencyCode = 'USD'
     ): string {
-        $raw = (float)($value ?? 0);
+        /*
+         * Never turn an unavailable API value into a real-looking zero.
+         * The previous implementation cast the em dash to float, so an
+         * internal report failure appeared as 0 / 0.0% / USD 0.00.
+         */
+        if (
+            $value === null
+            || $value === ''
+            || $value === '—'
+            || !is_numeric((string)$value)
+        ) {
+            return '—';
+        }
+
+        $raw = (float)$value;
 
         if (
             str_contains($metric, 'Rate')
@@ -151,18 +165,19 @@ if (!function_exists('ga4dash_overview_metric')) {
     function ga4dash_overview_metric(
         array $report,
         string $metric
-    ): string {
+    ): ?string {
         if (
             empty($report['ok'])
             || empty($report['rows'][0]['metrics'])
+            || !array_key_exists(
+                $metric,
+                (array)$report['rows'][0]['metrics']
+            )
         ) {
-            return '—';
+            return null;
         }
 
-        return (string)(
-            $report['rows'][0]['metrics'][$metric]
-            ?? '0'
-        );
+        return (string)$report['rows'][0]['metrics'][$metric];
     }
 }
 
@@ -350,6 +365,50 @@ $realtimeEvents =
         $realtime,
         'eventCount'
     );
+
+/*
+ * Surface partial API failures instead of silently hiding them.
+ */
+$failedSections = [];
+$successfulSections = 0;
+
+foreach ($dashboard as $key => $report) {
+    if (!is_array($report)) {
+        continue;
+    }
+
+    if (!empty($report['ok'])) {
+        $successfulSections++;
+        continue;
+    }
+
+    $failedSections[] = [
+        'key' => (string)$key,
+        'title' => (string)(
+            $report['title']
+            ?? ga4dash_label((string)$key)
+        ),
+        'error' => (string)(
+            $report['error']
+            ?? 'Google did not return this section.'
+        ),
+    ];
+}
+
+$fetchRequested =
+    (string)($_GET['fetch'] ?? '') === '1';
+
+$overviewOk =
+    !empty($overview['ok'])
+    && !empty($overview['rows'][0]['metrics']);
+
+$dailyOk =
+    !empty($daily['ok']);
+
+$fetchSucceeded =
+    $connection
+    && $overviewOk
+    && $dailyOk;
 ?>
 
 <link
@@ -445,6 +504,12 @@ $realtimeEvents =
                     value="business-ga4-api-data"
                 >
 
+                <input
+                    type="hidden"
+                    name="fetch"
+                    value="1"
+                >
+
                 <label>
                     <span>Start date</span>
                     <input
@@ -489,6 +554,56 @@ $realtimeEvents =
             </div>
         </section>
 
+        <?php if ($fetchRequested && $fetchSucceeded): ?>
+            <div
+                class="ga4-api-fetch-status ga4-api-fetch-status-success"
+                data-ga4-fetch-toast
+                role="status"
+            >
+                <strong>GA4 API data fetched successfully.</strong>
+                <span>
+                    Loaded live reporting for
+                    <?= ga4dash_h($periodStart) ?>
+                    →
+                    <?= ga4dash_h($periodEnd) ?>.
+                    <?= number_format($successfulSections) ?>
+                    reporting section(s) responded successfully.
+                </span>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($failedSections): ?>
+            <div
+                class="ga4-api-fetch-status ga4-api-fetch-status-warning"
+                role="alert"
+            >
+                <strong>
+                    Some GA4 sections could not be loaded.
+                </strong>
+
+                <span>
+                    The rest of the dashboard is still valid.
+                </span>
+
+                <details>
+                    <summary>
+                        Show <?= count($failedSections) ?> section error(s)
+                    </summary>
+
+                    <ul>
+                        <?php foreach ($failedSections as $failed): ?>
+                            <li>
+                                <strong>
+                                    <?= ga4dash_h($failed['title']) ?>:
+                                </strong>
+                                <?= ga4dash_h($failed['error']) ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </details>
+            </div>
+        <?php endif; ?>
+
         <section class="ga4-api-realtime-grid">
             <article class="ga4-api-realtime-card">
                 <span>Realtime active users</span>
@@ -514,6 +629,20 @@ $realtimeEvents =
                 <small>Current Google Realtime report</small>
             </article>
         </section>
+
+        <?php if (!$overviewOk): ?>
+            <div class="ga4-api-empty">
+                <strong>Overview KPIs are unavailable.</strong>
+                <span>
+                    <?= ga4dash_h(
+                        (string)(
+                            $overview['error']
+                            ?? 'The Overview report did not return data.'
+                        )
+                    ) ?>
+                </span>
+            </div>
+        <?php endif; ?>
 
         <section class="ga4-api-kpis">
             <?php

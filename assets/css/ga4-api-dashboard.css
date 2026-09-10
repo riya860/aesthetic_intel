@@ -402,3 +402,61 @@
         grid-template-columns:1fr;
     }
 }
+
+
+.ga4-api-fetch-status{
+    display:grid;
+    gap:5px;
+    padding:14px 16px;
+    border:1px solid;
+    border-radius:14px;
+    font-size:13px;
+    line-height:1.5;
+}
+.ga4-api-fetch-status-success{
+    border-color:#cfe5d6;
+    background:#f1faf4;
+    color:#2d6d48;
+}
+.ga4-api-fetch-status-warning{
+    border-color:#ead9b3;
+    background:#fff9ec;
+    color:#75571d;
+}
+.ga4-api-fetch-status strong{
+    color:inherit;
+}
+.ga4-api-fetch-status details{
+    margin-top:5px;
+}
+.ga4-api-fetch-status summary{
+    cursor:pointer;
+    font-weight:750;
+}
+.ga4-api-fetch-status ul{
+    margin:8px 0 0 18px;
+    padding:0;
+}
+.ga4-api-toast{
+    position:fixed;
+    top:20px;
+    right:20px;
+    z-index:9999;
+    width:min(420px,calc(100vw - 32px));
+    padding:14px 16px;
+    border:1px solid #cfe5d6;
+    border-radius:14px;
+    background:#f1faf4;
+    color:#2d6d48;
+    box-shadow:0 18px 50px rgba(20,40,30,.14);
+    font-size:13px;
+    font-weight:700;
+    opacity:0;
+    transform:translateY(-8px);
+    pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease;
+}
+.ga4-api-toast.is-visible{
+    opacity:1;
+    transform:translateY(0);
+}

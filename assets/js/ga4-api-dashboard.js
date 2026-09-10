@@ -127,6 +127,39 @@
         update();
     }
 
+
+    function fetchSuccessToast() {
+        var source =
+            document.querySelector(
+                '[data-ga4-fetch-toast]'
+            );
+
+        if (!source) return;
+
+        var toast =
+            document.createElement('div');
+
+        toast.className =
+            'ga4-api-toast';
+
+        toast.textContent =
+            'GA4 API data fetched successfully.';
+
+        document.body.appendChild(toast);
+
+        window.requestAnimationFrame(function () {
+            toast.classList.add('is-visible');
+        });
+
+        window.setTimeout(function () {
+            toast.classList.remove('is-visible');
+
+            window.setTimeout(function () {
+                toast.remove();
+            }, 220);
+        }, 3200);
+    }
+
     function drawChart() {
         var canvas =
             document.getElementById(
@@ -428,6 +461,7 @@
             showAllRows();
             fieldSearch();
             selectionLimits();
+            fetchSuccessToast();
             drawChart();
         }
     );

@@ -145,6 +145,14 @@ if (!function_exists('ga4dash_report_definitions')) {
     function ga4dash_report_definitions(): array
     {
         return [
+            /*
+             * Keep the main overview within the Data API/Core report limit
+             * enforced by this integration: 10 metrics per request.
+             *
+             * totalRevenue is fetched separately below and merged back into
+             * $result['overview'] so the frontend still sees one complete
+             * overview object.
+             */
             'overview' => [
                 'title' => 'Overview',
                 'dimensions' => [],
@@ -159,6 +167,14 @@ if (!function_exists('ga4dash_report_definitions')) {
                     'screenPageViews',
                     'eventCount',
                     'keyEvents',
+                ],
+                'limit' => 1,
+            ],
+
+            'overview_revenue' => [
+                'title' => 'Overview revenue',
+                'dimensions' => [],
+                'metrics' => [
                     'totalRevenue',
                 ],
                 'limit' => 1,
@@ -608,6 +624,72 @@ if (!function_exists('ga4dash_fetch_dashboard')) {
                 $definition
             );
         }
+
+        /*
+         * Merge the separate revenue request into the main Overview object.
+         * This preserves the frontend contract while keeping each Google
+         * Core report request inside the supported metric count.
+         */
+        if (
+            !empty($result['overview']['ok'])
+            && !empty($result['overview_revenue']['ok'])
+            && !empty($result['overview']['rows'][0])
+            && !empty($result['overview_revenue']['rows'][0])
+        ) {
+            $revenueMetrics =
+                (array)(
+                    $result['overview_revenue']['rows'][0]['metrics']
+                    ?? []
+                );
+
+            $result['overview']['rows'][0]['metrics'] =
+                array_merge(
+                    (array)$result['overview']['rows'][0]['metrics'],
+                    $revenueMetrics
+                );
+
+            $existingHeaders =
+                (array)($result['overview']['metric_headers'] ?? []);
+
+            $existingNames = [];
+            foreach ($existingHeaders as $header) {
+                if (is_array($header) && isset($header['name'])) {
+                    $existingNames[(string)$header['name']] = true;
+                }
+            }
+
+            foreach (
+                (array)($result['overview_revenue']['metric_headers'] ?? [])
+                as $header
+            ) {
+                $name = is_array($header)
+                    ? (string)($header['name'] ?? '')
+                    : '';
+
+                if ($name !== '' && !isset($existingNames[$name])) {
+                    $existingHeaders[] = $header;
+                    $existingNames[$name] = true;
+                }
+            }
+
+            $result['overview']['metric_headers'] =
+                $existingHeaders;
+        } elseif (
+            !empty($result['overview']['ok'])
+            && empty($result['overview_revenue']['ok'])
+        ) {
+            /*
+             * Do not fail the full Overview just because revenue is unavailable.
+             * The view will show an em dash for the missing revenue metric.
+             */
+            $result['overview']['partial_errors'][] =
+                (string)(
+                    $result['overview_revenue']['error']
+                    ?? 'Revenue metric unavailable.'
+                );
+        }
+
+        unset($result['overview_revenue']);
 
         $result['realtime'] =
             ga4dash_realtime($businessId);
