@@ -228,6 +228,188 @@ try{
    }catch(Throwable $e){flash('error',$e->getMessage());}
    redirect(url('business-google'));
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | GA4 LIVE API DATA DASHBOARD
+  |--------------------------------------------------------------------------
+  |
+  | Production, multi-business GA4 frontend.
+  |
+  | This is ADDITIVE:
+  | - Existing GA4 PDF upload remains unchanged.
+  | - Existing Brospro GA4 test console remains unchanged.
+  | - Google Connections remains the OAuth/property-management layer.
+  |
+  |--------------------------------------------------------------------------
+  */
+  case 'business-ga4-api-data':
+   require_auth();
+
+   try{
+    require_once __DIR__.'/app/ga4-api-dashboard.php';
+
+    $businessId=(int)googlehub_require_owner();
+
+    if(
+     function_exists('business_feature_enabled')
+     && !business_feature_enabled($businessId,'ga4')
+    ){
+     throw new RuntimeException(
+      'Google Analytics 4 is not enabled for this business.'
+     );
+    }
+
+    $businessStmt=db()->prepare(
+     'SELECT * FROM businesses WHERE id=? LIMIT 1'
+    );
+    $businessStmt->execute([$businessId]);
+    $business=$businessStmt->fetch();
+
+    if(!$business){
+     throw new RuntimeException(
+      'Business not found.'
+     );
+    }
+
+    $connection=ga4dash_connection(
+     $businessId
+    );
+
+    /*
+     * GET:
+     * normal dashboard/date-range fetch.
+     *
+     * POST:
+     * advanced GA4 Data Explorer report.
+     */
+    $rangeInput=is_post()
+     ? $_POST
+     : $_GET;
+
+    [$periodStart,$periodEnd]=ga4dash_period(
+     $rangeInput,
+     (string)($business['timezone']??'UTC')
+    );
+
+    $dashboard=[];
+    $metadata=[
+     'dimensions'=>[],
+     'metrics'=>[],
+     'error'=>null,
+    ];
+    $customReport=null;
+
+    if($connection){
+
+     /*
+      * These are live Google Analytics Data API requests.
+      * No phpMyAdmin/database inspection is required by the user.
+      */
+     $dashboard=ga4dash_fetch_dashboard(
+      $businessId,
+      $periodStart,
+      $periodEnd
+     );
+
+     /*
+      * Property-specific reporting metadata.
+      * This powers the advanced dimension/metric explorer.
+      */
+     $metadata=ga4dash_metadata(
+      $businessId
+     );
+
+     if(is_post()){
+      csrf_enforce();
+
+      $action=trim(
+       (string)($_POST['action']??'')
+      );
+
+      if($action==='custom'){
+       try{
+        $customReport=ga4dash_custom_report(
+         $businessId,
+         $periodStart,
+         $periodEnd,
+         $metadata,
+         $_POST
+        );
+
+        audit(
+         'ga4_custom_api_report_run',
+         [
+          'period_start'=>$periodStart,
+          'period_end'=>$periodEnd,
+          'dimensions'=>array_values(
+           (array)(
+            $_POST['custom_dimensions']
+            ?? []
+           )
+          ),
+          'metrics'=>array_values(
+           (array)(
+            $_POST['custom_metrics']
+            ?? []
+           )
+          ),
+         ],
+         $businessId
+        );
+
+       }catch(Throwable $customError){
+        error_log(
+         '[GA4 Custom Data Explorer] '
+         .$customError->getMessage()
+        );
+
+        flash(
+         'error',
+         'Custom GA4 report failed: '
+         .$customError->getMessage()
+        );
+       }
+      }
+     }
+    }
+
+    render(
+     'ga4-api-dashboard',
+     [
+      'title'=>'GA4 API Data',
+      'business'=>$business,
+      'connection'=>$connection,
+      'dashboard'=>$dashboard,
+      'metadata'=>$metadata,
+      'customReport'=>$customReport,
+      'periodStart'=>$periodStart,
+      'periodEnd'=>$periodEnd,
+      'currencyCode'=>ga4dash_currency_code(
+       $connection
+      ),
+     ]
+    );
+
+   }catch(Throwable $e){
+    error_log(
+     '[GA4 API Dashboard] '
+     .$e->getMessage()
+    );
+
+    flash(
+     'error',
+     'GA4 API dashboard could not be loaded: '
+     .$e->getMessage()
+    );
+
+    redirect(
+     url('business-google')
+    );
+   }
+
+   break;
+
   case 'change-password':
    require_auth();if(is_post()){csrf_enforce();$password=(string)($_POST['new_password']??'');$confirm=(string)($_POST['confirm_password']??'');if(strlen($password)<8)flash('error','The password must contain at least 8 characters.');elseif(!hash_equals($password,$confirm))flash('error','The passwords do not match.');else{$s=db()->prepare('UPDATE users SET password_hash=?,must_change_password=0,password_changed_at=NOW(),password_reset_at=NULL,failed_attempts=0,locked_until=NULL WHERE id=?');$s->execute([password_hash($password,PASSWORD_DEFAULT),auth_id()]);auth_mark_password_changed();audit('user_password_changed');flash('success','Your password was changed successfully.');redirect(auth_is_admin()?url('admin-dashboard'):url('business-dashboard'));}}render('change-password',['title'=>'Choose a new password'],'public');break;
   case 'admin-dashboard':
