@@ -117,6 +117,7 @@ $toolsOpen = in_array(
 
         'business-ga4-integration',
         'business-ga4-test',
+        'business-ga4-api-data',
         'ga4-test-console',
         'ga4-test-console-run',
         'ga4-test-console-compare',
@@ -406,8 +407,16 @@ $toolsVisible =
     class="nav-sublink <?=$current === 'business-ai-extraction' && $toolSource === 'ga4' ? 'active' : ''?>"
     href="<?=url('business-ai-extraction', ['source' => 'ga4'])?>"
 >
-    <span>G4</span>
-    Google Analytics 4
+    <span>PDF</span>
+    GA4 PDF Upload
+</a>
+
+<a
+    class="nav-sublink <?=$current === 'business-ga4-api-data' ? 'active' : ''?>"
+    href="<?=url('business-ga4-api-data')?>"
+>
+    <span>API</span>
+    GA4 API Data
 </a>
 
                                 <a
@@ -461,12 +470,20 @@ $toolsVisible =
                             <?php else: ?>
 
                                 <a
-                                    class="nav-sublink <?=$current === 'business-ai-extraction' && $toolSource === 'ga4' ? 'active' : ''?>"
-                                    href="<?=url('business-ai-extraction', ['source' => 'ga4'])?>"
-                                >
-                                    <span>G4</span>
-                                    Google Analytics 4
-                                </a>
+    class="nav-sublink <?=$current === 'business-ai-extraction' && $toolSource === 'ga4' ? 'active' : ''?>"
+    href="<?=url('business-ai-extraction', ['source' => 'ga4'])?>"
+>
+    <span>PDF</span>
+    GA4 PDF Upload
+</a>
+
+<a
+    class="nav-sublink <?=$current === 'business-ga4-api-data' ? 'active' : ''?>"
+    href="<?=url('business-ga4-api-data')?>"
+>
+    <span>API</span>
+    GA4 API Data
+</a>
 
                             <?php endif; ?>
 

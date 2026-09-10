@@ -70,6 +70,12 @@ $identity = is_array($model['google_identity'] ?? null) ? $model['google_identit
                         <button class="google-primary-button" type="submit">Sync GA4</button>
                     </form>
                     <a
+                        class="google-primary-button"
+                        href="<?= googlehub_esc(url('business-ga4-api-data')) ?>"
+                    >
+                        Open API dashboard
+                    </a>
+                    <a
                         class="google-secondary-button"
                         href="<?= googlehub_esc(url('business-google-select-ga4')) ?>"
                     >
