@@ -5,6 +5,7 @@ ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/app/bootstrap.php';
+require_once __DIR__ . '/app/google-business-platform.php';
 
 $page =
     (string)(
@@ -63,7 +64,170 @@ try{
   case 'login':
    if(auth_check())redirect(auth_is_admin()?url('admin-dashboard'):url('business-dashboard'));
    if(is_post()){csrf_enforce();[$ok,$error]=auth_attempt((string)($_POST['email']??''),(string)($_POST['password']??''));if($ok){audit('user_login');redirect(auth_must_change_password()?url('change-password'):(auth_is_admin()?url('admin-dashboard'):url('business-dashboard')));}flash('error',$error);}
-   render('login',['title'=>'Sign in'],'public');break;
+   render('login-google',['title'=>'Sign in','googleClientId'=>googlehub_login_client_id(),'googleLoginUri'=>googlehub_absolute_url('google-auth-callback')],'public');break;
+  case 'google-auth-callback':
+   if(is_post()){
+    try{
+     googlehub_gis_csrf_enforce();
+     $claims=googlehub_verify_id_token((string)($_POST['credential']??''));
+
+     if(auth_check()){
+      googlehub_link_identity((int)auth_id(),$claims);
+      audit('google_identity_linked',['google_email'=>$claims['email']??null],googlehub_business_id()?:null);
+      flash('success','Google login linked successfully.');
+      redirect(url('business-google'));
+     }
+
+     $identity=googlehub_identity_by_sub((string)$claims['sub']);
+     if($identity){
+      googlehub_login_user((int)$identity['user_id']);
+      audit('user_login_google',['google_email'=>$claims['email']??null],(int)($identity['business_id']??0)?:null);
+      redirect(auth_is_admin()?url('admin-dashboard'):url('business-google'));
+     }
+
+     $existing=googlehub_existing_user_by_email((string)$claims['email']);
+     if($existing){
+      flash('warning','An Aesthetic Intel account already exists for this email. Sign in with your password, open Google Connections, and link Google there.');
+      redirect(url('login'));
+     }
+
+     googlehub_pending_signup_set($claims);
+     redirect(url('google-onboarding'));
+
+    }catch(Throwable $e){
+     error_log('[Google login] '.$e->getMessage());
+     flash('error','Google sign-in failed: '.$e->getMessage());
+     redirect(auth_check()?url('business-google'):url('login'));
+    }
+   }
+   redirect(url('login'));
+
+  case 'google-onboarding':
+   if(auth_check())redirect(auth_is_admin()?url('admin-dashboard'):url('business-google'));
+   $pending=googlehub_pending_signup();
+   if(!$pending){flash('warning','Start Google signup again.');redirect(url('login'));}
+   if(is_post()){
+    csrf_enforce();
+    try{
+     googlehub_create_business_from_pending($_POST);
+     flash('success','Your business workspace was created. Connect Analytics and Business Profile below.');
+     redirect(url('business-google'));
+    }catch(Throwable $e){flash('error',$e->getMessage());}
+   }
+   render('google-onboarding',['title'=>'Create Business','pending'=>$pending],'public');break;
+
+  case 'business-google':
+   try{
+    $businessId=googlehub_require_owner();
+    $model=googlehub_hub_model($businessId);
+    render('google-business-hub',['title'=>'Google Connections','model'=>$model]);
+   }catch(Throwable $e){
+    flash('error',$e->getMessage());
+    redirect(auth_is_admin()?url('admin-dashboard'):url('business-dashboard'));
+   }
+   break;
+
+  case 'business-google-connect':
+   require_auth();if(!is_post())redirect(url('business-google'));csrf_enforce();
+   try{
+    $businessId=googlehub_require_owner();
+    $service=(string)($_POST['service']??'');
+    redirect(googlehub_oauth_start($service,$businessId,(int)auth_id()));
+   }catch(Throwable $e){flash('error','Google connection could not start: '.$e->getMessage());redirect(url('business-google'));}
+
+  case 'google-oauth-callback':
+   require_auth();
+   $googleError=trim((string)($_GET['error']??''));
+   if($googleError!==''){
+    flash('warning','Google authorization was cancelled: '.trim((string)($_GET['error_description']??$googleError)));
+    redirect(url('business-google'));
+   }
+   try{
+    $state=trim((string)($_GET['state']??''));$code=trim((string)($_GET['code']??''));
+    if($state===''||$code==='')throw new RuntimeException('Google did not return a valid authorization response.');
+    $saved=googlehub_consume_oauth_state($state);
+    $businessId=(int)$saved['business_id'];$service=(string)$saved['service'];
+    $token=googlehub_exchange_code($code);
+    $googleUser=googlehub_google_user_from_token($token);
+    googlehub_save_connection($businessId,(int)auth_id(),$service,$token,$googleUser);
+
+    if($service==='ga4'){
+     $options=googlehub_discover_ga4_properties($businessId);
+     $_SESSION['_google_ga4_options']=$options;
+     audit('google_ga4_authorized',['properties'=>count($options)],$businessId);
+     redirect(url('business-google-select-ga4'));
+    }
+
+    if($service==='gbp'){
+     $options=googlehub_discover_gbp_locations($businessId);
+     $_SESSION['_google_gbp_options']=$options;
+     audit('google_gbp_authorized',['locations'=>count($options)],$businessId);
+     redirect(url('business-google-select-gbp'));
+    }
+
+    throw new RuntimeException('Unknown Google service.');
+   }catch(Throwable $e){
+    error_log('[Google OAuth callback] '.$e->getMessage());
+    flash('error','Google authorization failed: '.$e->getMessage());
+    redirect(url('business-google'));
+   }
+
+  case 'business-google-select-ga4':
+   $businessId=googlehub_require_owner();
+   $properties=is_array($_SESSION['_google_ga4_options']??null)?$_SESSION['_google_ga4_options']:[];
+   if(is_post()){
+    csrf_enforce();
+    try{
+     $i=(int)($_POST['option_index']??-1);
+     if(!isset($properties[$i]))throw new RuntimeException('Choose a GA4 property.');
+     googlehub_select_ga4_property($businessId,$properties[$i]);
+     unset($_SESSION['_google_ga4_options']);
+     $saved=googlehub_sync_ga4($businessId,90);
+     audit('google_ga4_property_selected',['property_id'=>$properties[$i]['property_id'],'rows_synced'=>$saved],$businessId);
+     flash('success','Google Analytics connected and '.$saved.' daily row(s) synchronized.');
+     redirect(url('business-google'));
+    }catch(Throwable $e){flash('error',$e->getMessage());}
+   }
+   render('google-select-ga4',['title'=>'Choose GA4 Property','properties'=>$properties]);break;
+
+  case 'business-google-select-gbp':
+   $businessId=googlehub_require_owner();
+   $locations=is_array($_SESSION['_google_gbp_options']??null)?$_SESSION['_google_gbp_options']:[];
+   if(is_post()){
+    csrf_enforce();
+    try{
+     $i=(int)($_POST['option_index']??-1);
+     if(!isset($locations[$i]))throw new RuntimeException('Choose a Business Profile location.');
+     googlehub_select_gbp_location($businessId,$locations[$i]);
+     unset($_SESSION['_google_gbp_options']);
+     $saved=googlehub_sync_gbp($businessId,90);
+     audit('google_gbp_location_selected',['location'=>$locations[$i]['location_resource'],'rows_synced'=>$saved],$businessId);
+     flash('success','Google Business Profile connected and '.$saved.' daily row(s) synchronized.');
+     redirect(url('business-google'));
+    }catch(Throwable $e){flash('error',$e->getMessage());}
+   }
+   render('google-select-gbp',['title'=>'Choose Business Profile','locations'=>$locations]);break;
+
+  case 'business-google-sync':
+   require_auth();if(!is_post())redirect(url('business-google'));csrf_enforce();
+   try{
+    $businessId=googlehub_require_owner();$service=(string)($_POST['service']??'');
+    $saved=googlehub_sync_service($businessId,$service,90);
+    audit('google_service_synced',['service'=>$service,'rows'=>$saved],$businessId);
+    flash('success',strtoupper($service).' synchronized successfully: '.$saved.' daily row(s).');
+   }catch(Throwable $e){error_log('[Google sync] '.$e->getMessage());flash('error','Google sync failed: '.$e->getMessage());}
+   redirect(url('business-google'));
+
+  case 'business-google-disconnect':
+   require_auth();if(!is_post())redirect(url('business-google'));csrf_enforce();
+   try{
+    $businessId=googlehub_require_owner();$service=(string)($_POST['service']??'');
+    googlehub_disconnect($businessId,$service);
+    audit('google_service_disconnected',['service'=>$service],$businessId);
+    flash('success',strtoupper($service).' disconnected. Historical synchronized data was kept.');
+   }catch(Throwable $e){flash('error',$e->getMessage());}
+   redirect(url('business-google'));
+
   case 'change-password':
    require_auth();if(is_post()){csrf_enforce();$password=(string)($_POST['new_password']??'');$confirm=(string)($_POST['confirm_password']??'');if(strlen($password)<8)flash('error','The password must contain at least 8 characters.');elseif(!hash_equals($password,$confirm))flash('error','The passwords do not match.');else{$s=db()->prepare('UPDATE users SET password_hash=?,must_change_password=0,password_changed_at=NOW(),password_reset_at=NULL,failed_attempts=0,locked_until=NULL WHERE id=?');$s->execute([password_hash($password,PASSWORD_DEFAULT),auth_id()]);auth_mark_password_changed();audit('user_password_changed');flash('success','Your password was changed successfully.');redirect(auth_is_admin()?url('admin-dashboard'):url('business-dashboard'));}}render('change-password',['title'=>'Choose a new password'],'public');break;
   case 'admin-dashboard':
@@ -1911,10 +2075,11 @@ case 'boulevard-live-console':
 case 'boulevard-ruma-intelligence':
     require_admin();
 
-    require_once __DIR__ . '/app/Services/RumaBoulevardV2Orchestrator.php';
+    require_once __DIR__ . '/app/Services/Boulevard/BoulevardUnifiedService.php';
     require_once __DIR__ . '/app/Services/RumaBoulevardUploadComparison.php';
 
     $liveResult = $_SESSION['_boulevard_live_console_result'] ?? null;
+
     if (
         !is_array($liveResult)
         || empty($liveResult['success'])
@@ -1926,234 +2091,228 @@ case 'boulevard-ruma-intelligence':
     }
 
     try {
-        $preferredBusinessId = (int)(
+        $businessId = (int)(
             $liveResult['priority_intelligence']['meta']['aesthetic_business_id']
             ?? $liveResult['priority_intelligence_direct']['meta']['aesthetic_business_id']
             ?? 0
         );
 
-        $businessId = RumaBoulevardV2Orchestrator::resolveRumaBusinessId(
-            $preferredBusinessId > 0 ? $preferredBusinessId : null
+        if ($businessId < 1) {
+            $businessId = BoulevardUnifiedService::resolveRumaAestheticBusinessId();
+        }
+
+        $periodStart = (string)$liveResult['period_start'];
+        $periodEnd = (string)$liveResult['period_end'];
+
+        $manualBatches = RumaBoulevardUploadComparison::findExactPeriodBatches(
+            $businessId,
+            $periodStart,
+            $periodEnd
         );
+
+        $directApi = is_array($liveResult['priority_intelligence_direct'] ?? null)
+            ? $liveResult['priority_intelligence_direct']
+            : null;
 
         $selectedManualBatchId = (int)(
             $_SESSION['_ruma_boulevard_v2_manual_batch_id'] ?? 0
         );
 
-        $model = RumaBoulevardV2Orchestrator::pageModel(
-            $businessId,
-            (string)$liveResult['period_start'],
-            (string)$liveResult['period_end'],
-            $selectedManualBatchId > 0 ? $selectedManualBatchId : null
-        );
+        $selectedBatch = null;
+        $directComparison = null;
 
-        /* Direct Admin API vs the same normalized uploaded dashboard. This is
-         * intentionally separate from the Report Export comparison below:
-         * direct GraphQL is near-live operational reconstruction, while Report
-         * Export is the closest apples-to-apples parity check. */
-        $model['direct_api'] = is_array($liveResult['priority_intelligence_direct'] ?? null)
-            ? $liveResult['priority_intelligence_direct']
-            : null;
-        $model['direct_comparison'] = null;
-        $model['direct_comparison_batch'] = null;
-
-        if ($selectedManualBatchId > 0 && is_array($model['direct_api'])) {
-            $directBatch = RumaBoulevardUploadComparison::loadBatch(
+        if ($selectedManualBatchId > 0 && $directApi) {
+            $selectedBatch = RumaBoulevardUploadComparison::loadBatch(
                 $businessId,
                 $selectedManualBatchId,
-                (string)$liveResult['period_start'],
-                (string)$liveResult['period_end']
+                $periodStart,
+                $periodEnd
             );
 
-            if ($directBatch && is_array($directBatch['dashboard'] ?? null)) {
-                $model['direct_comparison_batch'] = $directBatch;
-                $model['direct_comparison'] = RumaBoulevardUploadComparison::compare(
-                    $model['direct_api'],
-                    $directBatch['dashboard']
+            if (
+                $selectedBatch
+                && is_array($selectedBatch['dashboard'] ?? null)
+            ) {
+                $directComparison = RumaBoulevardUploadComparison::compare(
+                    $directApi,
+                    $selectedBatch['dashboard']
                 );
             }
         }
 
-        render('boulevard-ruma-intelligence-v2', [
-            'title' => 'RUMA Boulevard Priority Intelligence',
-            'model' => $model,
-            'liveResult' => $liveResult,
-        ]);
+        /*
+         * Keep the model intentionally simple:
+         * - live Direct Admin API data
+         * - exact-period uploaded Boulevard data
+         * - optional API-vs-upload comparison
+         *
+         * Report Export sync is deliberately NOT part of Priority Intelligence.
+         */
+        $model = [
+            'business_id' => $businessId,
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
+            'manual_batches' => $manualBatches,
+            'selected_manual_batch' => $selectedBatch,
+            'direct_comparison_batch' => $selectedBatch,
+            'direct_api' => $directApi,
+            'direct_comparison' => $directComparison,
+        ];
+
+        render(
+            'boulevard-ruma-intelligence-v2',
+            [
+                'title' => 'RUMA Boulevard Priority Intelligence',
+                'model' => $model,
+                'liveResult' => $liveResult,
+            ]
+        );
+
     } catch (Throwable $e) {
-        error_log('[RUMA Boulevard v2 / page] ' . $e->getMessage());
-        flash('error', 'RUMA Boulevard intelligence could not load: ' . $e->getMessage());
+        error_log('[RUMA Boulevard intelligence / page] ' . $e->getMessage());
+        flash(
+            'error',
+            'RUMA Boulevard intelligence could not load: ' . $e->getMessage()
+        );
         redirect(url('boulevard-live-console'));
     }
+
     break;
 
 
+/*
+ * Legacy route kept only so an old bookmarked/form URL does not 404.
+ * Priority Intelligence no longer starts or depends on Report Export sync.
+ */
 case 'boulevard-ruma-intelligence-sync':
     require_admin();
+
+    flash(
+        'warning',
+        'Report-aligned sync has been removed from Priority Intelligence. '
+        . 'Use the live Boulevard API and the uploaded-data comparison instead.'
+    );
+
+    redirect(url('boulevard-ruma-intelligence'));
+    break;
+
+
+case 'boulevard-ruma-intelligence-compare-v2':
+    require_admin();
+
     if (!is_post()) {
         redirect(url('boulevard-ruma-intelligence'));
     }
+
     csrf_enforce();
 
-    require_once __DIR__ . '/app/Services/RumaBoulevardV2Orchestrator.php';
+    require_once __DIR__ . '/app/Services/Boulevard/BoulevardUnifiedService.php';
+    require_once __DIR__ . '/app/Services/RumaBoulevardUploadComparison.php';
 
     try {
+        $manualBatchId = (int)($_POST['manual_batch_id'] ?? 0);
+
+        if ($manualBatchId < 1) {
+            throw new RuntimeException(
+                'Choose an exact-period uploaded Boulevard report.'
+            );
+        }
+
         $liveResult = $_SESSION['_boulevard_live_console_result'] ?? null;
+
         if (
             !is_array($liveResult)
             || empty($liveResult['success'])
             || empty($liveResult['period_start'])
             || empty($liveResult['period_end'])
         ) {
-            throw new RuntimeException('Fetch RUMA live API data before starting the report-aligned API sync.');
+            throw new RuntimeException(
+                'Fetch RUMA Boulevard live API data first.'
+            );
         }
 
-        $preferredBusinessId = (int)(
+        $businessId = (int)(
             $liveResult['priority_intelligence']['meta']['aesthetic_business_id']
             ?? $liveResult['priority_intelligence_direct']['meta']['aesthetic_business_id']
             ?? 0
         );
 
-        $businessId = RumaBoulevardV2Orchestrator::resolveRumaBusinessId(
-            $preferredBusinessId > 0 ? $preferredBusinessId : null
-        );
-
-        $timezone = trim((string)(
-            $liveResult['location']['tz']
-            ?? $liveResult['business']['tz']
-            ?? 'America/Denver'
-        ));
-
-        $result = RumaBoulevardV2Orchestrator::startCanonicalApiSync(
-            $businessId,
-            (int)auth_id(),
-            (string)$liveResult['period_start'],
-            (string)$liveResult['period_end'],
-            $timezone,
-            'weekly'
-        );
-
-        if (!empty($result['batch_id'])) {
-            flash('success', 'Report-aligned Boulevard API data already exists for this exact period.');
-            redirect(url('boulevard-ruma-intelligence'));
+        if ($businessId < 1) {
+            $businessId = BoulevardUnifiedService::resolveRumaAestheticBusinessId();
         }
 
-        $runId = (int)($result['sync_run_id'] ?? 0);
-        if ($runId < 1) {
-            throw new RuntimeException('Boulevard report sync did not return a run ID.');
-        }
-
-        flash(
-            'success',
-            !empty($result['existing'])
-                ? 'The exact-period Boulevard report sync is already running.'
-                : 'Report-aligned Boulevard API sync started successfully.'
-        );
-
-        redirect(url('business-boulevard-sync', ['id' => $runId]));
-    } catch (Throwable $e) {
-        error_log('[RUMA Boulevard v2 / sync] ' . $e->getMessage());
-        flash('error', 'Could not start report-aligned Boulevard API sync: ' . $e->getMessage());
-        redirect(url('boulevard-ruma-intelligence'));
-    }
-    break;
-
-
-case 'boulevard-ruma-intelligence-compare-v2':
-    require_admin();
-    if (!is_post()) {
-        redirect(url('boulevard-ruma-intelligence'));
-    }
-    csrf_enforce();
-
-    require_once __DIR__ . '/app/Services/RumaBoulevardV2Orchestrator.php';
-
-    try {
-        $manualBatchId = (int)($_POST['manual_batch_id'] ?? 0);
-        if ($manualBatchId < 1) {
-            throw new RuntimeException('Choose a manual exact-period Boulevard upload.');
-        }
-
-        $liveResult = $_SESSION['_boulevard_live_console_result'] ?? null;
-        if (!is_array($liveResult) || empty($liveResult['success'])) {
-            throw new RuntimeException('Fetch RUMA Boulevard live data first.');
-        }
-
-        $preferredBusinessId = (int)(
-            $liveResult['priority_intelligence']['meta']['aesthetic_business_id']
-            ?? $liveResult['priority_intelligence_direct']['meta']['aesthetic_business_id']
-            ?? 0
-        );
-        $businessId = RumaBoulevardV2Orchestrator::resolveRumaBusinessId(
-            $preferredBusinessId > 0 ? $preferredBusinessId : null
-        );
-
-        $model = RumaBoulevardV2Orchestrator::pageModel(
-            $businessId,
-            (string)$liveResult['period_start'],
-            (string)$liveResult['period_end'],
-            $manualBatchId
-        );
-
-        require_once __DIR__ . '/app/Services/RumaBoulevardUploadComparison.php';
+        $periodStart = (string)$liveResult['period_start'];
+        $periodEnd = (string)$liveResult['period_end'];
 
         $directApi = is_array($liveResult['priority_intelligence_direct'] ?? null)
             ? $liveResult['priority_intelligence_direct']
             : null;
-        $directBatch = $directApi
-            ? RumaBoulevardUploadComparison::loadBatch(
-                $businessId,
-                $manualBatchId,
-                (string)$liveResult['period_start'],
-                (string)$liveResult['period_end']
-            )
-            : null;
-        $directComparison = ($directApi && $directBatch && is_array($directBatch['dashboard'] ?? null))
-            ? RumaBoulevardUploadComparison::compare($directApi, $directBatch['dashboard'])
-            : null;
 
-        if (empty($model['comparison']) && empty($directComparison)) {
+        if (!$directApi) {
             throw new RuntimeException(
-                'No comparison could be generated. Re-fetch RUMA live API data or complete the report-aligned API sync.'
+                'Direct Boulevard Priority Intelligence data is unavailable. '
+                . 'Fetch the live API data again.'
             );
         }
 
+        $batch = RumaBoulevardUploadComparison::loadBatch(
+            $businessId,
+            $manualBatchId,
+            $periodStart,
+            $periodEnd
+        );
+
+        if (!$batch || !is_array($batch['dashboard'] ?? null)) {
+            throw new RuntimeException(
+                'The selected upload is not a completed exact-period Boulevard batch.'
+            );
+        }
+
+        $comparison = RumaBoulevardUploadComparison::compare(
+            $directApi,
+            $batch['dashboard']
+        );
+
         $_SESSION['_ruma_boulevard_v2_manual_batch_id'] = $manualBatchId;
 
-        audit('boulevard_ruma_v2_compared', [
-            'api_batch_id' => (int)($model['api_batch']['id'] ?? 0),
-            'manual_batch_id' => $manualBatchId,
-            'period_start' => (string)$liveResult['period_start'],
-            'period_end' => (string)$liveResult['period_end'],
-            'report_export_match_percent' => isset($model['comparison']['match_percent'])
-                ? (float)$model['comparison']['match_percent']
-                : null,
-            'direct_api_match_percent' => isset($directComparison['match_percent'])
-                ? (float)$directComparison['match_percent']
-                : null,
-        ], $businessId);
+        audit(
+            'boulevard_ruma_direct_compared',
+            [
+                'manual_batch_id' => $manualBatchId,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'business_match_percent' =>
+                    (float)($comparison['business_match_percent']
+                        ?? $comparison['match_percent']
+                        ?? 0),
+                'provider_match_percent' =>
+                    (float)($comparison['provider_match_percent'] ?? 0),
+            ],
+            $businessId
+        );
 
-        $parts = [];
-        if ($directComparison) {
-            $parts[] = 'Direct Admin API: '
-                . number_format((float)$directComparison['match_percent'], 1)
-                . '%';
-        }
-        if (!empty($model['comparison'])) {
-            $parts[] = 'Report Export API: '
-                . number_format((float)$model['comparison']['match_percent'], 1)
-                . '%';
-        }
-
-        $hasReview = (!empty($directComparison) && $directComparison['overall_status'] !== 'verified')
-            || (!empty($model['comparison']) && $model['comparison']['overall_status'] !== 'verified');
+        $businessMatch = (float)(
+            $comparison['business_match_percent']
+            ?? $comparison['match_percent']
+            ?? 0
+        );
 
         flash(
-            $hasReview ? 'warning' : 'success',
-            'Boulevard API vs uploaded-data comparison completed. ' . implode(' · ', $parts) . '.'
+            ($comparison['overall_status'] ?? 'review') === 'verified'
+                ? 'success'
+                : 'warning',
+            'Boulevard API vs uploaded-data comparison completed. '
+            . 'Business alignment: '
+            . number_format($businessMatch, 1)
+            . '%.'
         );
+
     } catch (Throwable $e) {
-        error_log('[RUMA Boulevard v2 / compare] ' . $e->getMessage());
-        flash('error', 'Boulevard comparison failed: ' . $e->getMessage());
+        error_log('[RUMA Boulevard comparison] ' . $e->getMessage());
+        flash(
+            'error',
+            'Boulevard comparison failed: ' . $e->getMessage()
+        );
     }
 
     redirect(url('boulevard-ruma-intelligence') . '#comparison');
@@ -2282,22 +2441,444 @@ case 'business-boulevard-integration':
     csrf_enforce();$action=(string)($_POST['action']??'');
     try{
      $connection=boulevard_connection($businessId);
-     if(in_array($action,['save_connection','test_connection'],true)){
-      $apiKey=trim((string)($_POST['api_key']??''));$apiSecret=trim((string)($_POST['api_secret']??''));
-      $blvdId=trim((string)($_POST['boulevard_business_id']??($connection['boulevard_business_id']??'')));
-      if($apiKey==='')$apiKey=ai_decrypt_secret($connection['api_key_encrypted']??null)?:'';
-      if($apiSecret==='')$apiSecret=ai_decrypt_secret($connection['api_secret_encrypted']??null)?:'';
-      if($apiKey===''||$apiSecret===''||$blvdId==='')throw new RuntimeException('Enter the Boulevard OAuth Client ID, OAuth Client Secret, and RUMA Business UUID.');
-      $normalized=boulevard_normalize_business_id($blvdId);$keyEncrypted=ai_encrypt_secret($apiKey);$secretEncrypted=ai_encrypt_secret($apiSecret);
-      $status='saved';$name=$connection['connected_business_name']??null;$tz=$connection['connected_timezone']??null;$tested=$connection['last_tested_at']??null;
-      $message='Credentials saved. Run the connection test before fetching reports.';
-      if($action==='test_connection'){
-       $test=boulevard_test_connection_values($apiKey,$apiSecret,$normalized);db_reconnect();$status='connected';$name=$test['name'];$tz=$test['timezone'];$tested=date('Y-m-d H:i:s');$message='Connected successfully to '.$name.'.';
-       if(isset($_POST['apply_timezone'])&&$tz!==''&&in_array($tz,DateTimeZone::listIdentifiers(),true)){db()->prepare('UPDATE businesses SET timezone=? WHERE id=?')->execute([$tz,$businessId]);$business['timezone']=$tz;}
-      }
-      db()->prepare("INSERT INTO boulevard_connections(business_id,api_key_encrypted,api_secret_encrypted,boulevard_business_id,connected_business_name,connected_timezone,status,last_tested_at,last_test_message,updated_by) VALUES(?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE api_key_encrypted=VALUES(api_key_encrypted),api_secret_encrypted=VALUES(api_secret_encrypted),boulevard_business_id=VALUES(boulevard_business_id),connected_business_name=VALUES(connected_business_name),connected_timezone=VALUES(connected_timezone),status=VALUES(status),last_tested_at=VALUES(last_tested_at),last_test_message=VALUES(last_test_message),updated_by=VALUES(updated_by)")->execute([$businessId,$keyEncrypted,$secretEncrypted,$normalized,$name,$tz,$status,$tested,$message,auth_id()]);
-      audit($action==='test_connection'?'boulevard_connection_tested':'boulevard_connection_saved',['status'=>$status,'connected_business_name'=>$name],$businessId);flash('success',$message);redirect(url('business-boulevard-integration'));
-     }
+     if (in_array($action, ['save_connection', 'test_connection'], true)) {
+
+    /*
+     * ------------------------------------------------------------
+     * Read submitted credentials
+     * ------------------------------------------------------------
+     */
+
+    $apiKey = trim(
+        (string)($_POST['api_key'] ?? '')
+    );
+
+    $apiSecret = trim(
+        (string)($_POST['api_secret'] ?? '')
+    );
+
+    $blvdId = trim(
+        (string)(
+            $_POST['boulevard_business_id']
+            ??
+            ($connection['boulevard_business_id'] ?? '')
+        )
+    );
+
+
+    /*
+     * Blank password fields mean:
+     * keep the credential that is already stored.
+     */
+
+    if ($apiKey === '') {
+
+        $apiKey =
+            ai_decrypt_secret(
+                $connection['api_key_encrypted']
+                ?? null
+            )
+            ?: '';
+    }
+
+
+    if ($apiSecret === '') {
+
+        $apiSecret =
+            ai_decrypt_secret(
+                $connection['api_secret_encrypted']
+                ?? null
+            )
+            ?: '';
+    }
+
+
+    if (
+        $apiKey === ''
+        ||
+        $apiSecret === ''
+        ||
+        $blvdId === ''
+    ) {
+
+        throw new RuntimeException(
+            'Enter the Boulevard OAuth Client ID, '
+            . 'OAuth Client Secret, and RUMA Business UUID.'
+        );
+    }
+
+
+    /*
+     * ------------------------------------------------------------
+     * Normalize and encrypt
+     * ------------------------------------------------------------
+     */
+
+    $normalized =
+        boulevard_normalize_business_id(
+            $blvdId
+        );
+
+
+    $keyEncrypted =
+        ai_encrypt_secret(
+            $apiKey
+        );
+
+
+    $secretEncrypted =
+        ai_encrypt_secret(
+            $apiSecret
+        );
+
+
+    /*
+     * ------------------------------------------------------------
+     * IMPORTANT:
+     *
+     * SAVE THE CREDENTIALS BEFORE TESTING THEM.
+     *
+     * This means:
+     *
+     * valid credentials + installation/scope problem
+     *
+     * will not cause Aesthetic Intel to silently fall back
+     * to an older Client ID / Secret on the next request.
+     * ------------------------------------------------------------
+     */
+
+    $existingName =
+        $connection['connected_business_name']
+        ?? null;
+
+    $existingTimezone =
+        $connection['connected_timezone']
+        ?? null;
+
+    $existingTested =
+        $connection['last_tested_at']
+        ?? null;
+
+
+    db()->prepare(
+        "
+        INSERT INTO boulevard_connections
+        (
+            business_id,
+            api_key_encrypted,
+            api_secret_encrypted,
+            boulevard_business_id,
+            connected_business_name,
+            connected_timezone,
+            status,
+            last_tested_at,
+            last_test_message,
+            updated_by
+        )
+        VALUES
+        (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+
+        ON DUPLICATE KEY UPDATE
+
+            api_key_encrypted =
+                VALUES(api_key_encrypted),
+
+            api_secret_encrypted =
+                VALUES(api_secret_encrypted),
+
+            boulevard_business_id =
+                VALUES(boulevard_business_id),
+
+            connected_business_name =
+                VALUES(connected_business_name),
+
+            connected_timezone =
+                VALUES(connected_timezone),
+
+            status =
+                VALUES(status),
+
+            last_tested_at =
+                VALUES(last_tested_at),
+
+            last_test_message =
+                VALUES(last_test_message),
+
+            updated_by =
+                VALUES(updated_by)
+        "
+    )->execute([
+        $businessId,
+        $keyEncrypted,
+        $secretEncrypted,
+        $normalized,
+        $existingName,
+        $existingTimezone,
+        'saved',
+        $existingTested,
+        'Boulevard OAuth credentials saved. Connection test pending.',
+        auth_id(),
+    ]);
+
+
+    /*
+     * Refresh connection after saving.
+     */
+
+    $connection =
+        boulevard_connection(
+            $businessId
+        );
+
+
+    /*
+     * ------------------------------------------------------------
+     * Save only
+     * ------------------------------------------------------------
+     */
+
+    if ($action === 'save_connection') {
+
+        audit(
+            'boulevard_connection_saved',
+            [
+                'status' =>
+                    'saved',
+            ],
+            $businessId
+        );
+
+
+        flash(
+            'success',
+            'Boulevard OAuth credentials saved. '
+            . 'Run Save & Test Connection to verify the RUMA connection.'
+        );
+
+
+        redirect(
+            url(
+                'business-boulevard-integration'
+            )
+        );
+    }
+
+
+    /*
+     * ------------------------------------------------------------
+     * Test the credentials that are NOW safely stored
+     * ------------------------------------------------------------
+     */
+
+    try {
+
+        $test =
+            boulevard_test_connection_values(
+                $apiKey,
+                $apiSecret,
+                $normalized
+            );
+
+
+        /*
+         * cURL activity can leave the DB connection idle for a while.
+         */
+        db_reconnect();
+
+
+        $name =
+            (string)(
+                $test['name']
+                ?? ''
+            );
+
+
+        $tz =
+            (string)(
+                $test['timezone']
+                ?? ''
+            );
+
+
+        $tested =
+            date(
+                'Y-m-d H:i:s'
+            );
+
+
+        $message =
+            'Connected successfully to '
+            . (
+                $name !== ''
+                    ? $name
+                    : 'Boulevard'
+            )
+            . '.';
+
+
+        db()->prepare(
+            "
+            UPDATE boulevard_connections
+
+            SET
+                status = 'connected',
+                connected_business_name = ?,
+                connected_timezone = ?,
+                last_tested_at = ?,
+                last_test_message = ?,
+                updated_by = ?
+
+            WHERE business_id = ?
+            "
+        )->execute([
+            $name !== ''
+                ? $name
+                : null,
+
+            $tz !== ''
+                ? $tz
+                : null,
+
+            $tested,
+            $message,
+            auth_id(),
+            $businessId,
+        ]);
+
+
+        /*
+         * Optional:
+         * update Aesthetic Intel timezone from Boulevard.
+         */
+
+        if (
+            isset($_POST['apply_timezone'])
+            &&
+            $tz !== ''
+            &&
+            in_array(
+                $tz,
+                DateTimeZone::listIdentifiers(),
+                true
+            )
+        ) {
+
+            db()->prepare(
+                "
+                UPDATE businesses
+                SET timezone = ?
+                WHERE id = ?
+                "
+            )->execute([
+                $tz,
+                $businessId,
+            ]);
+
+
+            $business['timezone'] =
+                $tz;
+        }
+
+
+        audit(
+            'boulevard_connection_tested',
+            [
+                'status' =>
+                    'connected',
+
+                'connected_business_name' =>
+                    $name,
+            ],
+            $businessId
+        );
+
+
+        flash(
+            'success',
+            $message
+        );
+
+
+        redirect(
+            url(
+                'business-boulevard-integration'
+            )
+        );
+
+    } catch (Throwable $e) {
+
+        /*
+         * ------------------------------------------------------------
+         * TEST FAILED, BUT KEEP THE NEW CREDENTIALS.
+         * ------------------------------------------------------------
+         *
+         * This is the key correction.
+         *
+         * Examples:
+         *
+         * - app not installed
+         * - missing scope
+         * - temporary Boulevard outage
+         * - invalid business UUID
+         *
+         * None of those should cause Aesthetic Intel to revert
+         * silently to an older OAuth secret.
+         */
+
+        db_reconnect();
+
+
+        $errorMessage =
+            substr(
+                $e->getMessage(),
+                0,
+                1000
+            );
+
+
+        db()->prepare(
+            "
+            UPDATE boulevard_connections
+
+            SET
+                status = 'saved',
+                last_tested_at = ?,
+                last_test_message = ?,
+                updated_by = ?
+
+            WHERE business_id = ?
+            "
+        )->execute([
+            date(
+                'Y-m-d H:i:s'
+            ),
+
+            $errorMessage,
+
+            auth_id(),
+
+            $businessId,
+        ]);
+
+
+        audit(
+            'boulevard_connection_test_failed',
+            [
+                'status' =>
+                    'saved',
+
+                'message' =>
+                    $errorMessage,
+            ],
+            $businessId
+        );
+
+
+        throw $e;
+    }
+}
      if($action==='fetch_reports'){
       [$apiKey,$apiSecret,$blvdId]=boulevard_connection_credentials($businessId);$result=boulevard_fetch_reports_values($apiKey,$apiSecret,$blvdId);db_reconnect();$businessInfo=$result['business']??[];
       $message='Fetched '.count($result['reports']).' Boulevard report(s).';if(!empty($result['warning']))$message.=' Manual mapping remains available for any report not listed.';

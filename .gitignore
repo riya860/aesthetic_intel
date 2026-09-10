@@ -36,3 +36,4 @@ desktop.ini
 *.temp
 *.log
 /app/private/boulevard-secrets.php
+/app/private/google-platform.php

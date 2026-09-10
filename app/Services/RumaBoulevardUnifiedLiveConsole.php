@@ -292,6 +292,31 @@ final class RumaBoulevardUnifiedLiveConsole
             'previous_shifts' => $previousShifts,
         ]))->build();
 
+        /*
+         * The analytics builder intentionally remains generic.  For the RUMA
+         * 2026-06 integration we can safely improve provider attribution using
+         * fields already fetched above:
+         *
+         * Appointment.orderId
+         * AppointmentService.staffId / serviceId / price / staffRequested
+         * Order lineGroups -> OrderServiceLine.currentSubtotal / name
+         *
+         * This is especially important because OrderAppointmentLineGroup does
+         * not expose appointmentId in the Admin schema used by this account.
+         * We therefore join Order -> Appointment via Appointment.orderId.
+         */
+        $directIntelligence = self::enrichDirectIntelligence(
+            $directIntelligence,
+            $analyticsAppointments,
+            $analyticsOrders,
+            $staff,
+            $services,
+            $capabilities,
+            $periodStart,
+            $periodEnd,
+            $timezoneName
+        );
+
         $directIntelligence['meta'] = [
             'aesthetic_business_id' => $aestheticBusinessId,
             'business_name' => (string)($business['name'] ?? 'RUMA'),
@@ -848,6 +873,618 @@ final class RumaBoulevardUnifiedLiveConsole
         return array_values($rows);
     }
 
+
+
+    /**
+     * Improve the generic analytics result with RUMA-specific joins that are
+     * possible from the 2026-06 objects already returned by Boulevard.
+     *
+     * No patient-identifying fields are requested or emitted.
+     */
+    private static function enrichDirectIntelligence(
+        array $intelligence,
+        array $appointments,
+        array $orders,
+        array $staff,
+        array $services,
+        array $capabilities,
+        string $periodStart,
+        string $periodEnd,
+        string $timezoneName
+    ): array {
+        $staffNames = [];
+        foreach ($staff as $member) {
+            if (!is_array($member)) {
+                continue;
+            }
+            $id = trim((string)($member['id'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            $staffNames[$id] = trim((string)(
+                $member['displayName']
+                ?? $member['name']
+                ?? 'Unknown Provider'
+            ));
+        }
+
+        $serviceNames = [];
+        foreach ($services as $service) {
+            if (!is_array($service)) {
+                continue;
+            }
+            $id = trim((string)($service['id'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            $serviceNames[$id] = trim((string)($service['name'] ?? ''));
+        }
+
+        $providerBase = [];
+        foreach ((array)($intelligence['provider_details'] ?? []) as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $staffId = trim((string)(
+                $row['staff_id']
+                ?? $row['staffId']
+                ?? ''
+            ));
+            $name = trim((string)(
+                $row['provider']
+                ?? $row['name']
+                ?? ''
+            ));
+
+            if ($staffId !== '') {
+                $providerBase['id:' . $staffId] = $row;
+            }
+            if ($name !== '') {
+                $providerBase['name:' . self::providerKey($name)] = $row;
+            }
+        }
+
+        $providers = [];
+        $appointmentsByOrderId = [];
+        $daily = [];
+
+        try {
+            $timezone = new DateTimeZone($timezoneName);
+        } catch (Throwable) {
+            $timezone = new DateTimeZone(self::DEFAULT_TIMEZONE);
+        }
+
+        $periodStartDate = DateTimeImmutable::createFromFormat(
+            '!Y-m-d',
+            $periodStart,
+            $timezone
+        );
+        $periodEndDate = DateTimeImmutable::createFromFormat(
+            '!Y-m-d',
+            $periodEnd,
+            $timezone
+        );
+
+        if ($periodStartDate && $periodEndDate) {
+            for (
+                $cursor = $periodStartDate;
+                $cursor <= $periodEndDate;
+                $cursor = $cursor->modify('+1 day')
+            ) {
+                $day = $cursor->format('Y-m-d');
+                $daily[$day] = [
+                    'date' => $day,
+                    'revenue' => 0.0,
+                    'appointments' => 0,
+                ];
+            }
+        }
+
+        $clientMetadataAvailable =
+            !empty($capabilities['appointment_client_metadata']);
+
+        foreach ($appointments as $appointment) {
+            if (!is_array($appointment)) {
+                continue;
+            }
+
+            $appointmentId = trim((string)($appointment['id'] ?? ''));
+            $orderId = trim((string)($appointment['orderId'] ?? ''));
+            if ($orderId !== '') {
+                $appointmentsByOrderId[$orderId][] = $appointment;
+            }
+
+            $day = self::dateInTimezone(
+                (string)($appointment['startAt'] ?? ''),
+                $timezone
+            );
+            if ($day !== null && isset($daily[$day])) {
+                $daily[$day]['appointments']++;
+            }
+
+            $clientId = trim((string)($appointment['clientId'] ?? ''));
+            $client = is_array($appointment['client'] ?? null)
+                ? $appointment['client']
+                : null;
+
+            $isNewClient = false;
+            if ($clientMetadataAvailable && $client && !empty($client['createdAt'])) {
+                $clientCreatedDay = self::dateInTimezone(
+                    (string)$client['createdAt'],
+                    $timezone
+                );
+                if (
+                    $clientCreatedDay !== null
+                    && $clientCreatedDay >= $periodStart
+                    && $clientCreatedDay <= $periodEnd
+                ) {
+                    $isNewClient = true;
+                }
+            }
+
+            $seenStaffForAppointment = [];
+            foreach ((array)($appointment['appointmentServices'] ?? []) as $service) {
+                if (!is_array($service)) {
+                    continue;
+                }
+
+                $staffId = trim((string)($service['staffId'] ?? ''));
+                if ($staffId === '') {
+                    continue;
+                }
+
+                if (!isset($providers[$staffId])) {
+                    $existing = $providerBase['id:' . $staffId]
+                        ?? $providerBase[
+                            'name:' . self::providerKey($staffNames[$staffId] ?? '')
+                        ]
+                        ?? [];
+
+                    $providers[$staffId] = [
+                        'staff_id' => $staffId,
+                        'provider' => $staffNames[$staffId]
+                            ?? (string)($existing['provider'] ?? 'Unknown Provider'),
+                        'name' => $staffNames[$staffId]
+                            ?? (string)($existing['provider'] ?? 'Unknown Provider'),
+                        'appointments' => 0,
+                        'requested' => 0,
+                        'requested_appointments' => 0,
+                        'requested_available' => !empty($capabilities['requested_staff']),
+                        'new_clients' => $clientMetadataAvailable ? 0 : null,
+                        'new_clients_available' => $clientMetadataAvailable,
+                        'service_revenue' => 0.0,
+                        'service_revenue_available' => false,
+                        'retail_sales' => null,
+                        'retail_sales_available' => false,
+                        'utilization' => $existing['utilization'] ?? null,
+                        'utilization_available' => !empty($existing['utilization_available']),
+                        'scheduled_hours' => $existing['scheduled_hours'] ?? null,
+                        'revenue_per_hour' => $existing['revenue_per_hour'] ?? null,
+                        'revenue_per_hour_available' => !empty($existing['revenue_per_hour_available']),
+                        '_appointment_ids' => [],
+                        '_new_client_ids' => [],
+                    ];
+                }
+
+                if (
+                    $appointmentId !== ''
+                    && !isset($providers[$staffId]['_appointment_ids'][$appointmentId])
+                ) {
+                    $providers[$staffId]['_appointment_ids'][$appointmentId] = true;
+                    $providers[$staffId]['appointments']++;
+                } elseif ($appointmentId === '' && !isset($seenStaffForAppointment[$staffId])) {
+                    $providers[$staffId]['appointments']++;
+                }
+
+                $seenStaffForAppointment[$staffId] = true;
+
+                if (
+                    !empty($capabilities['requested_staff'])
+                    && !empty($service['staffRequested'])
+                ) {
+                    $providers[$staffId]['requested']++;
+                    $providers[$staffId]['requested_appointments']++;
+                }
+
+                if (
+                    $clientMetadataAvailable
+                    && $isNewClient
+                    && $clientId !== ''
+                    && !isset($providers[$staffId]['_new_client_ids'][$clientId])
+                ) {
+                    $providers[$staffId]['_new_client_ids'][$clientId] = true;
+                    $providers[$staffId]['new_clients']++;
+                }
+            }
+        }
+
+        $serviceRevenueCents = 0;
+        $productRevenueCents = 0;
+        $unassignedServiceRevenueCents = 0;
+        $providerAttributionObserved = false;
+
+        foreach ($orders as $order) {
+            if (!is_array($order)) {
+                continue;
+            }
+
+            $orderId = trim((string)($order['id'] ?? ''));
+            $orderAppointments = $orderId !== ''
+                ? (array)($appointmentsByOrderId[$orderId] ?? [])
+                : [];
+
+            $day = self::dateInTimezone(
+                (string)($order['closedAt'] ?? $order['createdAt'] ?? ''),
+                $timezone
+            );
+            if ($day !== null && isset($daily[$day])) {
+                $summary = is_array($order['summary'] ?? null)
+                    ? $order['summary']
+                    : [];
+                $daily[$day]['revenue'] +=
+                    ((float)($summary['currentTotal'] ?? 0)) / 100.0;
+            }
+
+            foreach ((array)($order['lineGroups'] ?? []) as $group) {
+                if (!is_array($group)) {
+                    continue;
+                }
+
+                $groupType = (string)($group['__typename'] ?? '');
+
+                foreach ((array)($group['lines'] ?? []) as $line) {
+                    if (!is_array($line)) {
+                        continue;
+                    }
+
+                    $lineType = (string)($line['__typename'] ?? '');
+                    $lineSubtotal = (int)round((float)($line['currentSubtotal'] ?? 0));
+
+                    if ($lineType === 'OrderServiceLine') {
+                        $serviceRevenueCents += $lineSubtotal;
+
+                        $candidateServices = [];
+                        $lineName = self::providerKey((string)($line['name'] ?? ''));
+
+                        foreach ($orderAppointments as $appointment) {
+                            if (!is_array($appointment)) {
+                                continue;
+                            }
+
+                            foreach ((array)($appointment['appointmentServices'] ?? []) as $appointmentService) {
+                                if (!is_array($appointmentService)) {
+                                    continue;
+                                }
+
+                                $staffId = trim((string)($appointmentService['staffId'] ?? ''));
+                                if ($staffId === '') {
+                                    continue;
+                                }
+
+                                $serviceId = trim((string)($appointmentService['serviceId'] ?? ''));
+                                $appointmentServiceName = self::providerKey(
+                                    $serviceNames[$serviceId] ?? ''
+                                );
+
+                                $candidateServices[] = [
+                                    'staff_id' => $staffId,
+                                    'name_match' => (
+                                        $lineName !== ''
+                                        && $appointmentServiceName !== ''
+                                        && $lineName === $appointmentServiceName
+                                    ),
+                                    'weight' => max(
+                                        0,
+                                        (int)round((float)($appointmentService['price'] ?? 0))
+                                    ),
+                                ];
+                            }
+                        }
+
+                        $matching = array_values(array_filter(
+                            $candidateServices,
+                            static fn(array $candidate): bool =>
+                                !empty($candidate['name_match'])
+                        ));
+
+                        $allocationCandidates = $matching ?: $candidateServices;
+
+                        if (!$allocationCandidates) {
+                            $unassignedServiceRevenueCents += $lineSubtotal;
+                            continue;
+                        }
+
+                        $byStaff = [];
+                        foreach ($allocationCandidates as $candidate) {
+                            $staffId = (string)$candidate['staff_id'];
+                            if (!isset($byStaff[$staffId])) {
+                                $byStaff[$staffId] = 0;
+                            }
+                            $byStaff[$staffId] += (int)$candidate['weight'];
+                        }
+
+                        if (!$byStaff) {
+                            $unassignedServiceRevenueCents += $lineSubtotal;
+                            continue;
+                        }
+
+                        $providerAttributionObserved = true;
+                        $totalWeight = array_sum($byStaff);
+                        if ($totalWeight <= 0) {
+                            foreach ($byStaff as $staffId => $_) {
+                                $byStaff[$staffId] = 1;
+                            }
+                            $totalWeight = count($byStaff);
+                        }
+
+                        $remaining = $lineSubtotal;
+                        $staffIds = array_keys($byStaff);
+                        $lastIndex = count($staffIds) - 1;
+
+                        foreach ($staffIds as $index => $staffId) {
+                            $allocated = $index === $lastIndex
+                                ? $remaining
+                                : (int)round(
+                                    $lineSubtotal
+                                    * ((int)$byStaff[$staffId] / $totalWeight)
+                                );
+
+                            $remaining -= $allocated;
+
+                            if (!isset($providers[$staffId])) {
+                                $providers[$staffId] = [
+                                    'staff_id' => $staffId,
+                                    'provider' => $staffNames[$staffId] ?? 'Unknown Provider',
+                                    'name' => $staffNames[$staffId] ?? 'Unknown Provider',
+                                    'appointments' => 0,
+                                    'requested' => null,
+                                    'requested_appointments' => null,
+                                    'requested_available' => false,
+                                    'new_clients' => $clientMetadataAvailable ? 0 : null,
+                                    'new_clients_available' => $clientMetadataAvailable,
+                                    'service_revenue' => 0.0,
+                                    'service_revenue_available' => true,
+                                    'retail_sales' => null,
+                                    'retail_sales_available' => false,
+                                    'utilization' => null,
+                                    'utilization_available' => false,
+                                    'scheduled_hours' => null,
+                                    'revenue_per_hour' => null,
+                                    'revenue_per_hour_available' => false,
+                                    '_appointment_ids' => [],
+                                    '_new_client_ids' => [],
+                                ];
+                            }
+
+                            $providers[$staffId]['service_revenue'] +=
+                                $allocated / 100.0;
+                            $providers[$staffId]['service_revenue_available'] = true;
+                        }
+                    } elseif (
+                        $lineType === 'OrderProductLine'
+                        || $groupType === 'OrderRetailLineGroup'
+                    ) {
+                        $productRevenueCents += $lineSubtotal;
+                    }
+                }
+            }
+        }
+
+        /*
+         * If line-group data were returned, zero is a real provider value.
+         * Mark every observed provider as attributable so the UI does not hide
+         * valid zeros.
+         */
+        if ($providerAttributionObserved) {
+            foreach ($providers as &$provider) {
+                if (is_array($provider)) {
+                    $provider['service_revenue_available'] = true;
+                }
+            }
+            unset($provider);
+        }
+
+        if ($unassignedServiceRevenueCents !== 0) {
+            $providers['__unassigned__'] = [
+                'staff_id' => null,
+                'provider' => 'Unassigned',
+                'name' => 'Unassigned',
+                'appointments' => 0,
+                'requested' => null,
+                'requested_appointments' => null,
+                'requested_available' => false,
+                'new_clients' => null,
+                'new_clients_available' => false,
+                'service_revenue' => $unassignedServiceRevenueCents / 100.0,
+                'service_revenue_available' => true,
+                'retail_sales' => null,
+                'retail_sales_available' => false,
+                'utilization' => null,
+                'utilization_available' => false,
+                'scheduled_hours' => null,
+                'revenue_per_hour' => null,
+                'revenue_per_hour_available' => false,
+                '_appointment_ids' => [],
+                '_new_client_ids' => [],
+            ];
+        }
+
+        foreach ($providers as &$provider) {
+            if (!is_array($provider)) {
+                continue;
+            }
+
+            unset(
+                $provider['_appointment_ids'],
+                $provider['_new_client_ids']
+            );
+
+            if (
+                !empty($provider['utilization_available'])
+                && is_numeric($provider['scheduled_hours'] ?? null)
+                && (float)$provider['scheduled_hours'] > 0
+                && !empty($provider['service_revenue_available'])
+                && is_numeric($provider['service_revenue'] ?? null)
+            ) {
+                $provider['revenue_per_hour'] =
+                    (float)$provider['service_revenue']
+                    / (float)$provider['scheduled_hours'];
+                $provider['revenue_per_hour_available'] = true;
+            }
+        }
+        unset($provider);
+
+        $providerRows = array_values($providers);
+        usort($providerRows, static function (array $a, array $b): int {
+            if (($a['provider'] ?? '') === 'Unassigned') {
+                return 1;
+            }
+            if (($b['provider'] ?? '') === 'Unassigned') {
+                return -1;
+            }
+
+            $appointmentsCompare =
+                ((int)($b['appointments'] ?? 0))
+                <=>
+                ((int)($a['appointments'] ?? 0));
+
+            return $appointmentsCompare !== 0
+                ? $appointmentsCompare
+                : strcasecmp(
+                    (string)($a['provider'] ?? ''),
+                    (string)($b['provider'] ?? '')
+                );
+        });
+
+        $intelligence['provider_details'] = $providerRows;
+        $intelligence['providers'] = $providerRows;
+        $intelligence['provider_performance'] = $providerRows;
+
+        if ($serviceRevenueCents > 0) {
+            $intelligence['sales_summary']['service_revenue'] = [
+                'available' => true,
+                'value' => $serviceRevenueCents / 100.0,
+                'format' => 'currency',
+                'source' => 'orders.lineGroups.OrderServiceLine.currentSubtotal',
+                'definition' =>
+                    'Closed-order service-line current subtotal for the selected period.',
+            ];
+        }
+
+        if ($productRevenueCents > 0) {
+            $intelligence['sales_summary']['product_revenue'] = [
+                'available' => true,
+                'value' => $productRevenueCents / 100.0,
+                'format' => 'currency',
+                'source' => 'orders.lineGroups.OrderRetailLineGroup',
+                'definition' =>
+                    'Closed-order retail/product-line current subtotal for the selected period.',
+            ];
+        }
+
+        $requestedTotal = 0;
+        $requestedAvailable = !empty($capabilities['requested_staff']);
+        if ($requestedAvailable) {
+            foreach ($providerRows as $provider) {
+                if (is_numeric($provider['requested'] ?? null)) {
+                    $requestedTotal += (int)$provider['requested'];
+                }
+            }
+
+            $intelligence['sales_summary']['requested_appointments'] = [
+                'available' => true,
+                'value' => $requestedTotal,
+                'format' => 'number',
+                'source' => 'appointmentServices.staffRequested',
+                'definition' =>
+                    'Appointment services where the provider was specifically requested.',
+            ];
+        }
+
+        if ($clientMetadataAvailable) {
+            $newClientIds = [];
+            foreach ($appointments as $appointment) {
+                if (!is_array($appointment)) {
+                    continue;
+                }
+
+                $clientId = trim((string)($appointment['clientId'] ?? ''));
+                $client = is_array($appointment['client'] ?? null)
+                    ? $appointment['client']
+                    : null;
+
+                if ($clientId === '' || !$client || empty($client['createdAt'])) {
+                    continue;
+                }
+
+                $createdDay = self::dateInTimezone(
+                    (string)$client['createdAt'],
+                    $timezone
+                );
+
+                if (
+                    $createdDay !== null
+                    && $createdDay >= $periodStart
+                    && $createdDay <= $periodEnd
+                ) {
+                    $newClientIds[$clientId] = true;
+                }
+            }
+
+            $intelligence['performance']['new_clients'] = [
+                'available' => true,
+                'value' => count($newClientIds),
+                'format' => 'number',
+                'source' => 'clients.createdAt + appointments.clientId',
+                'definition' =>
+                    'Unique clients created during the selected reporting period.',
+            ];
+        } else {
+            /*
+             * Never expose a fabricated zero when client:read is unavailable.
+             */
+            $intelligence['performance']['new_clients'] = [
+                'available' => false,
+                'value' => null,
+                'format' => 'number',
+                'source' => 'client:read',
+                'definition' =>
+                    'Requires Boulevard client:read access.',
+            ];
+        }
+
+        if ($daily !== []) {
+            $intelligence['daily'] = array_values($daily);
+        }
+
+        return $intelligence;
+    }
+
+    private static function providerKey(string $value): string
+    {
+        $value = strtolower(trim($value));
+        $value = preg_replace('/[^a-z0-9]+/i', ' ', $value) ?? $value;
+        return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
+    }
+
+    private static function dateInTimezone(
+        string $value,
+        DateTimeZone $timezone
+    ): ?string {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return (new DateTimeImmutable($value))
+                ->setTimezone($timezone)
+                ->format('Y-m-d');
+        } catch (Throwable) {
+            return null;
+        }
+    }
 
     private static function safeFetch(
         callable $callback,

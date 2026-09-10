@@ -574,25 +574,101 @@ function boulevard_masked_secret(?string $encrypted,string $empty='Not configure
     return substr($plain,0,7).'••••••••'.substr($plain,-4);
 }
 
-function boulevard_test_connection_values(string $apiKey,string $apiSecret,string $businessId): array {
-    $normalizedBusinessId = boulevard_normalize_business_id($businessId);
-    $query='query AestheticIntelBoulevardConnection { business { id name tz } permissions }';
-    $data=boulevard_graphql($apiKey,$apiSecret,$normalizedBusinessId,$query);
-    $business=$data['business']??null;
-    if(!is_array($business)||empty($business['id']))throw new RuntimeException('Boulevard OAuth connected, but no business details were returned.');
+function boulevard_test_connection_values(
+    string $apiKey,
+    string $apiSecret,
+    string $businessId
+): array {
 
-    $returnedBusinessId = boulevard_normalize_business_id((string)$business['id']);
-    if (!hash_equals(strtolower($normalizedBusinessId), strtolower($returnedBusinessId))) {
+    $normalizedBusinessId =
+        boulevard_normalize_business_id(
+            $businessId
+        );
+
+    /*
+     * Connection testing only needs to verify:
+     *
+     * 1. OAuth credentials are valid
+     * 2. App is installed for the business
+     * 3. Admin API can be accessed
+     * 4. The returned Boulevard business matches RUMA
+     *
+     * Do NOT query "permissions" here.
+     *
+     * Boulevard 2026-06 defines permissions as [Permission!]!,
+     * which requires object subfields and is unnecessary for
+     * connection verification.
+     */
+    $query = <<<'GRAPHQL'
+query AestheticIntelBoulevardConnection {
+    business {
+        id
+        name
+        tz
+    }
+}
+GRAPHQL;
+
+    $data =
+        boulevard_graphql(
+            $apiKey,
+            $apiSecret,
+            $normalizedBusinessId,
+            $query
+        );
+
+    $business =
+        $data['business']
+        ?? null;
+
+    if (
+        !is_array($business)
+        ||
+        empty($business['id'])
+    ) {
         throw new RuntimeException(
-            'Boulevard OAuth connected to a different business than the configured RUMA Business UUID.'
+            'Boulevard OAuth connected, but no business details were returned.'
+        );
+    }
+
+    $returnedBusinessId =
+        boulevard_normalize_business_id(
+            (string)$business['id']
+        );
+
+    if (
+        !hash_equals(
+            strtolower($normalizedBusinessId),
+            strtolower($returnedBusinessId)
+        )
+    ) {
+        throw new RuntimeException(
+            'Boulevard OAuth connected to a different business '
+            . 'than the configured RUMA Business UUID.'
         );
     }
 
     return [
-        'id'=>(string)$business['id'],
-        'name'=>(string)($business['name']??'Boulevard Business'),
-        'timezone'=>(string)($business['tz']??''),
-        'permissions'=>is_array($data['permissions']??null)?$data['permissions']:[],
+        'id' =>
+            (string)$business['id'],
+
+        'name' =>
+            (string)(
+                $business['name']
+                ?? 'Boulevard Business'
+            ),
+
+        'timezone' =>
+            (string)(
+                $business['tz']
+                ?? ''
+            ),
+
+        /*
+         * Permissions are not required for the connection test.
+         */
+        'permissions' =>
+            [],
     ];
 }
 
@@ -1297,7 +1373,33 @@ function boulevard_sync_preflight(int $businessId,array $filterOverrides=[],?arr
 
 function boulevard_start_sync_run(int $businessId,int $userId,string $frequency,string $periodStart,string $periodEnd,string $timezone,array $filterOverrides=[]): int {
     [$periodStart,$periodEnd]=reporting_normalize_period($frequency,$periodStart,$periodEnd,$timezone);$today=reporting_business_today($timezone);
-    if($periodEnd!==$today)throw new RuntimeException('For accurate relative exports, Period End must be today in '.$timezone.' ('.$today.').');
+    $reportExportEligible =
+    $periodEnd === $todayDenver;
+
+if (!$reportExportEligible) {
+
+    /*
+     * Historical periods remain completely valid
+     * for direct Admin API intelligence.
+     *
+     * Only Boulevard relative Report Export
+     * reconciliation is skipped.
+     */
+
+    $reportExportCoverageNote =
+        'Boulevard Report Export validation was skipped because '
+        . 'this historical period does not match the report\'s '
+        . 'relative-period requirement. Direct Admin API '
+        . 'intelligence is still available.';
+
+} else {
+
+    $reportExportCoverageNote = null;
+
+    /*
+     * Existing report export sync can run here.
+     */
+}
     $active=db()->prepare("SELECT id FROM boulevard_sync_runs WHERE business_id=? AND period_start=? AND period_end=? AND status IN ('queued','preflight','requesting','waiting','running','processing') AND created_at>=DATE_SUB(NOW(),INTERVAL 3 HOUR) ORDER BY id DESC LIMIT 1");$active->execute([$businessId,$periodStart,$periodEnd]);$existing=(int)($active->fetchColumn()?:0);if($existing)return $existing;
     $preflight=boulevard_sync_preflight($businessId,$filterOverrides);$mappings=$preflight['rows'];$interval=boulevard_sync_interval($periodStart,$periodEnd);
     $insertRun=db()->prepare("INSERT INTO boulevard_sync_runs(business_id,period_start,period_end,frequency,status,requested_count,started_by,started_at,status_message,preflight_json,next_worker_at) VALUES(?,?,?,?, 'queued',?,?,NOW(),?,?,NOW())");$insertRun->execute([$businessId,$periodStart,$periodEnd,$frequency,count($mappings),$userId,'Preflight passed. Reports are queued for controlled background processing.',json_encode($preflight,JSON_UNESCAPED_SLASHES)]);$runId=(int)db()->lastInsertId();

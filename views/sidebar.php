@@ -55,6 +55,22 @@ $businessAiWeeklyPages = [
     'business-ai-weekly-report',
 ];
 
+$googleConnectionPages = [
+    'business-google',
+    'business-google-connect',
+    'business-google-select-ga4',
+    'business-google-select-gbp',
+    'business-google-sync',
+    'business-google-disconnect',
+    'google-oauth-callback',
+];
+
+$googleConnectionsActive = in_array(
+    $current,
+    $googleConnectionPages,
+    true
+);
+
 $aiWeeklyReportVisible =
     !empty($businessFeatures['ai_weekly_report']);
 
@@ -74,6 +90,7 @@ if (!function_exists('ai_nav_icon')) {
             'reports' => '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z"/>',
             'transfer' => '<path d="M7 7h11l-3-3m3 3-3 3M17 17H6l3 3m-3-3 3-3"/>',
             'settings' => '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1V21h-4v-.09a1.7 1.7 0 0 0-1.4-1.68 1.7 1.7 0 0 0-1.5.48l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.6-1H3v-4h.09A1.7 1.7 0 0 0 4.7 8.6a1.7 1.7 0 0 0-.48-1.5l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6V3h4v.09a1.7 1.7 0 0 0 1.4 1.61 1.7 1.7 0 0 0 1.5-.48l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.36.33.7.6 1h1v4h-.09a1.7 1.7 0 0 0-1.51 1Z"/>',
+            'google' => '<path d="M20 12h-8m8 0a8 8 0 1 1-2.3-5.7M20 12c0 4.7-3.1 8-8 8"/>',
             'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
             'help' => '<circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 3.9 1.9c-.9.7-1.6 1.1-1.6 2.6M12 17h.01"/>',
             'logout' => '<path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',
@@ -157,6 +174,17 @@ $toolsVisible =
                 <?=ai_nav_icon('business')?>
                 <span class="nav-text">Businesses</span>
             </a>
+
+            <?php if ($providerKpiBusinessId > 0): ?>
+                <a
+                    class="nav-link <?=$googleConnectionsActive ? 'active' : ''?>"
+                    href="<?=url('business-google')?>"
+                    title="Manage GA4 and Google Business Profile for the active business"
+                >
+                    <?=ai_nav_icon('google')?>
+                    <span class="nav-text">Google Connections</span>
+                </a>
+            <?php endif; ?>
 
             <a
                 class="nav-link <?=in_array($current, ['admin-users', 'admin-user-form'], true) ? 'active' : ''?>"
@@ -257,6 +285,16 @@ $toolsVisible =
             >
                 <?=ai_nav_icon('dashboard')?>
                 <span class="nav-text">Dashboard</span>
+            </a>
+
+            <a
+                class="nav-link <?=$googleConnectionsActive ? 'active' : ''?>"
+                href="<?=url('business-google')?>"
+                <?=$googleConnectionsActive ? 'aria-current="page"' : ''?>
+                title="Connect and sync Google Analytics 4 and Google Business Profile"
+            >
+                <?=ai_nav_icon('google')?>
+                <span class="nav-text">Google Connections</span>
             </a>
 
             <?php if ($providerKpiVisible): ?>

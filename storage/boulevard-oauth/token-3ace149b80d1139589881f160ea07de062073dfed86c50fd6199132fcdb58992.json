@@ -1,0 +1,11 @@
+{
+    "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6Ilp4X2JRTDFoSlAzMENGYWVRdnNuMk5MbmR6NGtLZUo0UGNvVU9xUWR0ckkiLCJ0eXAiOiJhdCtqd3QifQ.eyJhdWQiOlsiaHR0cHM6Ly9kYXNoYm9hcmQuYm91bGV2YXJkLmlvL2FwaS8yMDI2LTA2L2FkbWluIl0sImJ1c2luZXNzX2lkIjoiNjRkMTZiY2YtMTEzNy00MzEyLTgwYWEtNTFjODljZWE3NWQ0IiwiY2xpZW50X2lkIjoiNjI0MmJjMTItNTRkMi00YzVjLWFjNzItZDRhNWNkOThjOTYxIiwiZXhwIjoxNzg5MDIyMTMwLCJncmFudF90eXBlIjoiY2xpZW50X2NyZWRlbnRpYWxzIiwiaWF0IjoxNzg4OTM1NzMwLCJpc3MiOiJodHRwczovL2Rhc2hib2FyZC5ib3VsZXZhcmQuaW8iLCJqdGkiOiJkNjdhNjA5Zi05Y2M5LTRlMjctOWQ0OS0wYjg3YzUwMGM4MWIiLCJuYmYiOjE3ODg5MzU3MzAsInNjb3BlIjoiYXBwb2ludG1lbnQ6cmVhZCBidXNpbmVzczpyZWFkIGxvY2F0aW9uOnJlYWQgb3JkZXI6cmVhZCByZXBvcnQ6ZXhwb3J0IHJlcG9ydDpyZWFkIHNlcnZpY2U6cmVhZCBzdGFmZjpyZWFkIiwic3ViIjoiNjI0MmJjMTItNTRkMi00YzVjLWFjNzItZDRhNWNkOThjOTYxIn0.QwS0ANi9ESFcwXD-WJ3AqMfvWfN7_yYi_RuAmDsg42_PGIcML9L3-F5mNIZTDm49RtuvX0r2HcxEuOx1ZB2UwLeIEo0X_ScTBfRkcbJoGvPryar4rPsdaVMrANqVDNsxpiwHnrb6IDGRSUe5P4YXmIJfXKYzWqJDIlRptVwDb1gRTyLR6sZjT3ZBwgs3cHVXW2P_V0tig7_4bScjdtyyBlaCVtu7brJaEj37kiZeY_E0Fdok8uUTD2gP7qybWhOKzYedteCiI5GdOweQrg8WyXFwRk3rE3wi3dCSu1YNlZHpvdrWz1hbkMS6W78g-u6uNZ5Z5mpQCkX3ERQneYUS4g",
+    "token_type": "bearer",
+    "expires_at": 1789022130,
+    "scope": "appointment:read business:read location:read order:read report:export report:read service:read staff:read",
+    "aud": [
+        "https://dashboard.boulevard.io/api/2026-06/admin"
+    ],
+    "business_id": "64d16bcf-1137-4312-80aa-51c89cea75d4",
+    "cached_at": 1788935731
+}

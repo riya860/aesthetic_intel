@@ -156,21 +156,60 @@ final class RumaBoulevardUploadComparison
             }
         }
 
-        $allComparable = $comparable + $providerComparable;
-        $allMatched = $matched + $providerMatched;
-        $allReview = $review + $providerReview;
+        /*
+         * IMPORTANT SCORE SEMANTICS
+         * -------------------------
+         * The Direct Admin API comparison is an operational diagnostic, not
+         * Boulevard report parity.  Business KPIs and provider rows have
+         * different metric definitions and should not be mixed into one
+         * denominator.  The old implementation did exactly that, which is why
+         * the screen could report e.g. 39 "comparable" metrics and a 5% match
+         * rate even though many rows were provider-level reconstructions.
+         *
+         * `match_percent` is therefore the BUSINESS-LEVEL direct diagnostic
+         * score only. Provider alignment is reported separately.
+         *
+         * True report parity remains the Report Export API vs manual upload
+         * comparison built by RumaBoulevardReportComparisonV2.
+         */
+        $businessMatchPercent = $comparable > 0
+            ? round(($matched / $comparable) * 100, 1)
+            : 0.0;
+
+        $providerMatchPercent = $providerComparable > 0
+            ? round(($providerMatched / $providerComparable) * 100, 1)
+            : 0.0;
 
         return [
-            'overall_status' => $allComparable === 0
+            'overall_status' => $comparable === 0
                 ? 'incomplete'
-                : ($allReview === 0 ? 'verified' : 'review'),
-            'comparable_metrics' => $allComparable,
-            'matched_metrics' => $allMatched,
-            'review_metrics' => $allReview,
+                : ($review === 0 ? 'verified' : 'review'),
+
+            'comparable_metrics' => $comparable,
+            'matched_metrics' => $matched,
+            'review_metrics' => $review,
             'unavailable_metrics' => $unavailable,
-            'match_percent' => $allComparable > 0
-                ? round(($allMatched / $allComparable) * 100, 1)
-                : 0.0,
+            'match_percent' => $businessMatchPercent,
+
+            'business_comparable_metrics' => $comparable,
+            'business_matched_metrics' => $matched,
+            'business_review_metrics' => $review,
+            'business_match_percent' => $businessMatchPercent,
+
+            'provider_comparable_metrics' => $providerComparable,
+            'provider_matched_metrics' => $providerMatched,
+            'provider_review_metrics' => $providerReview,
+            'provider_match_percent' => $providerMatchPercent,
+
+            'expanded_comparable_metrics' => $comparable + $providerComparable,
+            'expanded_matched_metrics' => $matched + $providerMatched,
+            'expanded_review_metrics' => $review + $providerReview,
+
+            'score_kind' => 'direct_admin_operational_diagnostic',
+            'score_note' =>
+                'Direct GraphQL reconstructs operational metrics and is not expected to equal Boulevard report definitions. '
+                . 'Use Report Export API vs uploaded-report comparison for the parity score.',
+
             'metrics' => $rows,
             'providers' => $providerRows,
             'tolerances' => [
@@ -223,6 +262,12 @@ final class RumaBoulevardUploadComparison
                 self::compareMetric('Utilization', $apiMetric($a, 'utilization', 'utilization_available'), self::percentUploadMetric($u, 'utilization'), 'percent'),
                 self::compareMetric('Scheduled hours', $apiMetric($a, 'scheduled_hours', 'utilization_available'), $uploadMetric($u, 'hours_scheduled'), 'decimal'),
                 self::compareMetric('Appointments', $apiMetric($a, 'appointments'), $uploadMetric($u, 'appointments'), 'number'),
+                self::compareMetric(
+                    'Requested appointments',
+                    $apiMetric($a, 'requested', 'requested_available'),
+                    $uploadMetric($u, 'requested'),
+                    'number'
+                ),
                 self::compareMetric('New clients', $apiMetric($a, 'new_clients', 'new_clients_available'), $uploadMetric($u, 'new_clients'), 'number'),
                 self::compareMetric('Revenue / hour', $apiMetric($a, 'revenue_per_hour', 'revenue_per_hour_available'), $uploadMetric($u, 'revenue_per_hour'), 'currency'),
                 self::compareMetric('Retail sales', $apiMetric($a, 'retail_sales'), $uploadMetric($u, 'product_revenue'), 'currency'),
@@ -332,6 +377,8 @@ final class RumaBoulevardUploadComparison
 
     private static function key(string $value): string
     {
-        return strtolower(trim(preg_replace('/\s+/', ' ', $value) ?? $value));
+        $value = strtolower(trim($value));
+        $value = preg_replace('/[^a-z0-9]+/i', ' ', $value) ?? $value;
+        return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
     }
 }

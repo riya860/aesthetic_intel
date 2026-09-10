@@ -346,6 +346,19 @@ final class RumaBoulevardV2Orchestrator
             $periodEnd
         );
 
+        /*
+         * If there is exactly one eligible exact-period upload, select it
+         * automatically. This keeps the comparison deterministic while
+         * avoiding an unnecessary second click. When multiple uploads exist
+         * the administrator must still choose explicitly.
+         */
+        if ($selectedManualBatchId === null && count($manualBatches) === 1) {
+            $selectedManualBatchId = (int)($manualBatches[0]['id'] ?? 0);
+            if ($selectedManualBatchId < 1) {
+                $selectedManualBatchId = null;
+            }
+        }
+
         $apiCanonical = null;
 
         if ($apiBatch) {
@@ -415,6 +428,14 @@ final class RumaBoulevardV2Orchestrator
             'has_manual_batches' => $manualBatches !== [],
             'comparison_ready' => $apiBatch !== null && $manualBatches !== [],
             'comparison_selected' => $comparison !== null,
+
+            /*
+             * UI/source-plane helpers. Report Export is the canonical fallback
+             * for scope-gated direct KPIs and the primary report-parity plane.
+             */
+            'canonical_fallback_available' => $apiCanonical !== null,
+            'parity_source' => 'boulevard_report_export_api',
+            'direct_source' => 'boulevard_admin_graphql_2026_06',
         ];
     }
 
