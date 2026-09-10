@@ -1,0 +1,404 @@
+.ga4-api-page{
+    display:grid;
+    gap:18px;
+    width:100%;
+    padding-bottom:42px;
+}
+.ga4-api-hero{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:20px;
+    padding:8px 2px 2px;
+}
+.ga4-api-hero h1{
+    margin:5px 0 8px;
+    font-size:clamp(30px,4vw,48px);
+    line-height:1.02;
+    letter-spacing:-.045em;
+}
+.ga4-api-hero p,
+.ga4-api-panel-head p{
+    margin:0;
+    max-width:760px;
+    color:#73747c;
+    line-height:1.6;
+}
+.ga4-api-kicker{
+    color:#686973;
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.15em;
+}
+.ga4-api-hero-actions,
+.ga4-api-filter,
+.ga4-explorer-actions{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+.ga4-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:42px;
+    padding:0 16px;
+    border:1px solid #d8d9df;
+    border-radius:12px;
+    background:#fff;
+    color:#19191d;
+    text-decoration:none;
+    font:inherit;
+    font-weight:750;
+    cursor:pointer;
+}
+.ga4-btn-primary{
+    border-color:#18181c;
+    background:#18181c;
+    color:#fff;
+}
+.ga4-btn-ghost{
+    background:transparent;
+}
+.ga4-api-panel{
+    min-width:0;
+    border:1px solid #e0e1e5;
+    border-radius:22px;
+    background:#fff;
+    padding:22px;
+    box-shadow:0 8px 28px rgba(26,26,33,.035);
+}
+.ga4-api-connection{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    padding:14px 18px;
+    border:1px solid #dcebe1;
+    border-radius:16px;
+    background:#f4faf6;
+}
+.ga4-api-connection>div{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+}
+.ga4-live-dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#33885a;
+    box-shadow:0 0 0 5px rgba(51,136,90,.1);
+}
+.ga4-api-source-badge{
+    display:inline-flex;
+    padding:7px 10px;
+    border-radius:999px;
+    background:#e9f4ed;
+    color:#2f704c;
+    font-size:12px;
+    font-weight:800;
+}
+.ga4-api-filter-panel{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+}
+.ga4-api-filter label,
+.ga4-explorer-actions label{
+    display:grid;
+    gap:6px;
+    color:#666770;
+    font-size:12px;
+    font-weight:750;
+}
+.ga4-api-filter input,
+.ga4-explorer-actions select{
+    min-height:42px;
+    padding:0 12px;
+    border:1px solid #d8d9df;
+    border-radius:10px;
+    background:#fff;
+    color:#18181c;
+    font:inherit;
+}
+.ga4-api-range-note{
+    color:#85868d;
+    font-size:13px;
+}
+.ga4-api-realtime-grid,
+.ga4-api-kpis{
+    display:grid;
+    gap:12px;
+}
+.ga4-api-realtime-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.ga4-api-kpis{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+}
+.ga4-api-realtime-card,
+.ga4-api-kpi-card{
+    display:grid;
+    gap:7px;
+    min-width:0;
+    border:1px solid #e0e1e5;
+    border-radius:18px;
+    background:#fff;
+    padding:19px;
+}
+.ga4-api-realtime-card{
+    background:linear-gradient(135deg,#1d1d22,#29262d);
+    color:#fff;
+}
+.ga4-api-realtime-card span,
+.ga4-api-kpi-card span{
+    color:#777880;
+    font-size:13px;
+    font-weight:700;
+}
+.ga4-api-realtime-card span{
+    color:#d7d7db;
+}
+.ga4-api-realtime-card strong,
+.ga4-api-kpi-card strong{
+    font-size:clamp(23px,3vw,34px);
+    letter-spacing:-.035em;
+}
+.ga4-api-realtime-card small{
+    color:#a9a9b0;
+}
+.ga4-api-section-nav{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    position:sticky;
+    top:10px;
+    z-index:4;
+    padding:10px;
+    border:1px solid #e3e4e8;
+    border-radius:16px;
+    background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);
+}
+.ga4-api-section-nav a{
+    padding:8px 11px;
+    border-radius:9px;
+    color:#5e5f67;
+    text-decoration:none;
+    font-size:13px;
+    font-weight:700;
+}
+.ga4-api-section-nav a:hover{
+    background:#f1f1f3;
+    color:#17171b;
+}
+.ga4-api-panel-head{
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    align-items:flex-start;
+    margin-bottom:16px;
+}
+.ga4-api-panel-head h2,
+.ga4-api-panel-head h3{
+    margin:5px 0 0;
+    letter-spacing:-.025em;
+}
+.ga4-api-two-column{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:18px;
+}
+.ga4-api-muted{
+    color:#8a8b92;
+    font-size:12px;
+}
+.ga4-chart-shell{
+    width:100%;
+    height:280px;
+    margin:10px 0 24px;
+}
+.ga4-chart-shell canvas{
+    display:block;
+    width:100%;
+    height:100%;
+}
+.ga4-api-table-wrap{
+    max-width:100%;
+    overflow:auto;
+}
+.ga4-api-table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    font-size:13px;
+}
+.ga4-api-table th{
+    position:sticky;
+    top:0;
+    z-index:1;
+    padding:11px 12px;
+    border-bottom:1px solid #dedfe4;
+    background:#f6f6f7;
+    color:#64656d;
+    text-align:left;
+    white-space:nowrap;
+    font-size:11px;
+    letter-spacing:.055em;
+    text-transform:uppercase;
+}
+.ga4-api-table td{
+    padding:12px;
+    border-bottom:1px solid #eeeeF1;
+    color:#2f3035;
+    vertical-align:top;
+}
+.ga4-api-table tbody tr:hover td{
+    background:#fbfbfc;
+}
+.ga4-table-more{
+    margin-top:10px;
+    border:0;
+    background:transparent;
+    color:#55565f;
+    font:inherit;
+    font-size:13px;
+    font-weight:750;
+    cursor:pointer;
+}
+.ga4-api-empty{
+    display:grid;
+    gap:5px;
+    padding:16px;
+    border:1px dashed #d7d8de;
+    border-radius:12px;
+    background:#fafafa;
+    color:#777881;
+    font-size:13px;
+    line-height:1.5;
+}
+.ga4-api-empty strong{
+    color:#36373d;
+}
+.ga4-explorer-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;
+}
+.ga4-field-picker{
+    min-width:0;
+    border:1px solid #e0e1e5;
+    border-radius:16px;
+    overflow:hidden;
+}
+.ga4-field-picker-head{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px;
+    background:#f7f7f8;
+}
+.ga4-field-picker-head>div{
+    display:grid;
+    gap:2px;
+}
+.ga4-field-picker-head small,
+.ga4-field-picker-head>span{
+    color:#86878e;
+    font-size:11px;
+}
+.ga4-field-search{
+    width:calc(100% - 24px);
+    margin:12px;
+    min-height:40px;
+    padding:0 11px;
+    border:1px solid #d8d9df;
+    border-radius:10px;
+    font:inherit;
+}
+.ga4-field-list{
+    height:330px;
+    overflow:auto;
+    padding:0 12px 12px;
+}
+.ga4-field-option{
+    display:flex;
+    align-items:flex-start;
+    gap:9px;
+    padding:9px 6px;
+    border-bottom:1px solid #f0f0f2;
+    cursor:pointer;
+}
+.ga4-field-option span{
+    display:grid;
+    gap:2px;
+}
+.ga4-field-option strong{
+    font-size:12px;
+}
+.ga4-field-option small{
+    color:#87888f;
+    font-size:10px;
+    line-height:1.35;
+}
+.ga4-explorer-actions{
+    margin-top:16px;
+}
+.ga4-custom-results{
+    margin-top:24px;
+    padding-top:22px;
+    border-top:1px solid #e1e2e6;
+}
+.ga4-api-footnote{
+    padding:16px 18px;
+    border-radius:14px;
+    background:#f6f6f7;
+    color:#6c6d75;
+    font-size:13px;
+    line-height:1.55;
+}
+.ga4-api-footnote strong{
+    color:#28292f;
+}
+.ga4-api-connect-state{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+}
+@media(max-width:1100px){
+    .ga4-api-kpis{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+    .ga4-api-two-column{
+        grid-template-columns:1fr;
+    }
+}
+@media(max-width:760px){
+    .ga4-api-hero,
+    .ga4-api-connect-state{
+        display:grid;
+    }
+    .ga4-api-kpis{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+    .ga4-api-realtime-grid,
+    .ga4-explorer-grid{
+        grid-template-columns:1fr;
+    }
+    .ga4-api-panel{
+        padding:16px;
+        border-radius:17px;
+    }
+}
+@media(max-width:480px){
+    .ga4-api-kpis{
+        grid-template-columns:1fr;
+    }
+}
