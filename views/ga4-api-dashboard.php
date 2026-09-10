@@ -1242,108 +1242,160 @@ $fetchSucceeded =
                         </div>
                     <?php endif; ?>
 
-                    <div class="ga4-api-table-wrap">
-                        <table class="ga4-api-table ga4-compare-table">
-                            <thead>
-                                <tr>
-                                    <th>Metric</th>
-                                    <th>Live API</th>
-                                    <th>PDF</th>
-                                    <th>Difference</th>
-                                    <th>Difference %</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
+                    <?php
+                    $comparisonRows =
+                        (array)($pdfComparison['metrics'] ?? []);
 
-                            <tbody>
-                                <?php foreach (
-                                    (array)($pdfComparison['metrics'] ?? [])
-                                    as $metricRow
-                                ): ?>
-                                    <?php
-                                    $status =
-                                        (string)(
-                                            $metricRow['status']
-                                            ?? 'unavailable'
-                                        );
-                                    ?>
+                    $visibleComparisonRows = [];
+                    $missingComparisonRows = [];
+
+                    foreach ($comparisonRows as $metricRow) {
+                        $status =
+                            (string)(
+                                $metricRow['status']
+                                ?? 'unavailable'
+                            );
+
+                        if ($status === 'unavailable') {
+                            $missingComparisonRows[] =
+                                $metricRow;
+                        } else {
+                            $visibleComparisonRows[] =
+                                $metricRow;
+                        }
+                    }
+                    ?>
+
+                    <?php if ($visibleComparisonRows): ?>
+                        <div class="ga4-api-table-wrap ga4-compare-table-wrap">
+                            <table class="ga4-api-table ga4-compare-table">
+                                <thead>
                                     <tr>
-                                        <td>
-                                            <strong>
+                                        <th>Metric</th>
+                                        <th>Live API</th>
+                                        <th>PDF</th>
+                                        <th>Difference</th>
+                                        <th>Difference %</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <?php foreach (
+                                        $visibleComparisonRows
+                                        as $metricRow
+                                    ): ?>
+                                        <?php
+                                        $status =
+                                            (string)(
+                                                $metricRow['status']
+                                                ?? 'unavailable'
+                                            );
+                                        ?>
+                                        <tr>
+                                            <td>
+                                                <strong>
+                                                    <?= ga4dash_h(
+                                                        (string)(
+                                                            $metricRow['label']
+                                                            ?? ''
+                                                        )
+                                                    ) ?>
+                                                </strong>
+                                            </td>
+
+                                            <td>
                                                 <?= ga4dash_h(
                                                     (string)(
-                                                        $metricRow['label']
-                                                        ?? ''
+                                                        $metricRow['api_display']
+                                                        ?? '—'
                                                     )
                                                 ) ?>
-                                            </strong>
-                                        </td>
+                                            </td>
 
-                                        <td>
-                                            <?= ga4dash_h(
-                                                (string)(
-                                                    $metricRow['api_display']
-                                                    ?? '—'
-                                                )
-                                            ) ?>
-                                        </td>
+                                            <td>
+                                                <?= ga4dash_h(
+                                                    (string)(
+                                                        $metricRow['pdf_display']
+                                                        ?? '—'
+                                                    )
+                                                ) ?>
+                                            </td>
 
-                                        <td>
-                                            <?= ga4dash_h(
-                                                (string)(
-                                                    $metricRow['pdf_display']
-                                                    ?? '—'
-                                                )
-                                            ) ?>
-                                        </td>
+                                            <td>
+                                                <?= ga4dash_h(
+                                                    (string)(
+                                                        $metricRow['delta_display']
+                                                        ?? '—'
+                                                    )
+                                                ) ?>
+                                            </td>
 
-                                        <td>
-                                            <?= ga4dash_h(
-                                                (string)(
-                                                    $metricRow['delta_display']
-                                                    ?? '—'
-                                                )
-                                            ) ?>
-                                        </td>
+                                            <td>
+                                                <?php if (
+                                                    $metricRow['delta_percent']
+                                                    !== null
+                                                ): ?>
+                                                    <?= number_format(
+                                                        (float)$metricRow[
+                                                            'delta_percent'
+                                                        ],
+                                                        2
+                                                    ) ?>%
+                                                <?php else: ?>
+                                                    —
+                                                <?php endif; ?>
+                                            </td>
 
-                                        <td>
-                                            <?php if (
-                                                $metricRow['delta_percent']
-                                                !== null
-                                            ): ?>
-                                                <?= number_format(
-                                                    (float)$metricRow[
-                                                        'delta_percent'
-                                                    ],
-                                                    2
-                                                ) ?>%
-                                            <?php else: ?>
-                                                —
-                                            <?php endif; ?>
-                                        </td>
-
-                                        <td>
-                                            <span
-                                                class="ga4-compare-status ga4-compare-status-<?= ga4dash_h(
-                                                    $status
-                                                ) ?>"
-                                            >
-                                                <?=
-                                                    $status === 'match'
+                                            <td>
+                                                <span
+                                                    class="ga4-compare-status ga4-compare-status-<?= ga4dash_h(
+                                                        $status
+                                                    ) ?>"
+                                                >
+                                                    <?= $status === 'match'
                                                         ? 'Matched'
-                                                        : (
-                                                            $status === 'review'
-                                                                ? 'Review'
-                                                                : 'Not found'
-                                                        )
-                                                ?>
-                                            </span>
-                                        </td>
-                                    </tr>
+                                                        : 'Review'
+                                                    ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <div class="ga4-api-empty">
+                            No comparable PDF metrics were found in this upload.
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($missingComparisonRows): ?>
+                        <details class="ga4-compare-missing">
+                            <summary>
+                                <?= number_format(
+                                    count($missingComparisonRows)
+                                ) ?>
+                                metric(s) not present in this PDF
+                            </summary>
+
+                            <div class="ga4-compare-missing-list">
+                                <?php foreach (
+                                    $missingComparisonRows
+                                    as $missingRow
+                                ): ?>
+                                    <span>
+                                        <?= ga4dash_h(
+                                            (string)(
+                                                $missingRow['label']
+                                                ?? ''
+                                            )
+                                        ) ?>
+                                    </span>
                                 <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                            </div>
+                        </details>
+                    <?php endif; ?>
 
                     <?php if (
                         (int)(
@@ -1352,9 +1404,9 @@ $fetchSucceeded =
                         ) > 0
                     ): ?>
                         <div class="ga4-api-muted ga4-compare-note">
-                            Some API metrics were not found in the uploaded
-                            PDF. They are marked “Not found” and are excluded
-                            from the alignment percentage.
+                            Metrics not present in the selected PDF are collapsed
+                            below the comparison table and excluded from the
+                            alignment percentage.
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
