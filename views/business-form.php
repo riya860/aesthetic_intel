@@ -24,7 +24,7 @@ foreach($featureDefinitions as $featureCode=>$definition)if(!empty($currentFeatu
 
 <form method="post" class="panel form-panel feature-controls-form" data-feature-controls-form>
  <?=csrf_field()?>
- <div class="form-grid two">
+ <div class="form-grid two" id="business-profile">
   <label>Business name<input name="name" required value="<?=e($_POST['name']??$business['name']??'')?>"></label>
   <label>Status<select name="status"><option value="active" <?=($_POST['status']??$business['status']??'active')==='active'?'selected':''?>>Active</option><option value="inactive" <?=($_POST['status']??$business['status']??'')==='inactive'?'selected':''?>>Inactive</option></select></label>
   <label>Contact name<input name="contact_name" value="<?=e($_POST['contact_name']??$business['contact_name']??'')?>"></label>
@@ -36,7 +36,7 @@ foreach($featureDefinitions as $featureCode=>$definition)if(!empty($currentFeatu
  </div>
 
  <?php if($business):?>
- <section class="feature-controls-shell" aria-labelledby="feature-controls-heading">
+ <section class="feature-controls-shell" id="business-feature-controls" aria-labelledby="feature-controls-heading">
   <div class="feature-controls-head">
    <div>
     <span class="eyebrow">Workspace configuration</span>

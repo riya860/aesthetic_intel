@@ -580,4 +580,80 @@
     refresh();
   });
 
+
+  /* ---------------------------------------------------------------
+   * Global loading and page-transition experience.
+   * This is intentionally presentation-only: it does not change routes,
+   * form payloads, API calls, or navigation destinations.
+   * ------------------------------------------------------------- */
+  const globalLoader = document.querySelector('[data-global-loader]');
+  const globalLoaderTitle = globalLoader?.querySelector('[data-global-loader-title]');
+  const globalLoaderMessage = globalLoader?.querySelector('[data-global-loader-message]');
+
+  const showGlobalLoader = (title = 'Loading', message = 'Preparing the next view…') => {
+    if (!globalLoader) return;
+    if (globalLoaderTitle) globalLoaderTitle.textContent = title;
+    if (globalLoaderMessage) globalLoaderMessage.textContent = message;
+    globalLoader.classList.add('is-visible');
+    globalLoader.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('ai-is-navigating');
+  };
+
+  const hideGlobalLoader = () => {
+    if (!globalLoader) return;
+    globalLoader.classList.remove('is-visible');
+    globalLoader.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('ai-is-navigating');
+  };
+
+  document.body.classList.add('ai-page-enter');
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => document.body.classList.add('ai-page-ready'));
+  });
+
+  window.addEventListener('pageshow', hideGlobalLoader);
+  window.addEventListener('load', () => document.body.classList.add('ai-page-ready'));
+
+  document.addEventListener('click', (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest('a[href]');
+    if (!link || link.hasAttribute('download') || link.dataset.noPageLoader !== undefined) return;
+    if (link.target && link.target !== '_self') return;
+
+    const href = link.getAttribute('href') || '';
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+    let targetUrl;
+    try {
+      targetUrl = new URL(link.href, window.location.href);
+    } catch (_) {
+      return;
+    }
+
+    if (targetUrl.origin !== window.location.origin) return;
+    if (targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search && targetUrl.hash) return;
+
+    showGlobalLoader('Opening page', 'Loading the next Aesthetic Intel view…');
+  });
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (form.dataset.noPageLoader !== undefined || form.target === '_blank') return;
+
+    const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+
+    window.setTimeout(() => {
+      if (event.defaultPrevented) return;
+      if (submitter) {
+        submitter.classList.add('is-loading');
+        submitter.setAttribute('aria-busy', 'true');
+      }
+      showGlobalLoader(
+        form.dataset.loadingTitle || 'Processing',
+        form.dataset.loadingMessage || 'Please wait while Aesthetic Intel completes this request…'
+      );
+    }, 0);
+  });
+
 })();

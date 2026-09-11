@@ -1,4 +1,4 @@
-<section class="page-head"><div><p class="eyebrow">Super Admin</p><h1>OpenAI Integration</h1><p>Connect Aesthetic Intel to OpenAI for screenshot and PDF extraction, then monitor organization usage when an Admin API key is available.</p></div></section>
+<section class="page-head"><div><p class="eyebrow">Super Admin · AI configuration</p><h1>Review with AI</h1><p>Configure the AI-assisted review layer Aesthetic Intel uses for report extraction, structured analysis, and usage monitoring. OpenAI connection details remain available below for administrators.</p></div></section>
 <div class="content-card" style="max-width:900px">
  <div class="alert alert-warning"><strong>Important:</strong> OpenAI API billing is separate from a ChatGPT subscription. Keep both keys private and never expose them to business users.</div>
  <form method="post" autocomplete="off">

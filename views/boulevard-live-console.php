@@ -159,6 +159,52 @@ $fullFetch =
         : [];
 
 
+$priorityIntelligenceDirect =
+    is_array(
+        $testResult['priority_intelligence_direct']
+        ?? null
+    )
+        ? $testResult['priority_intelligence_direct']
+        : [];
+
+
+$priorityInsights =
+    is_array(
+        $priorityIntelligenceDirect['insights']
+        ?? null
+    )
+        ? array_slice(
+            $priorityIntelligenceDirect['insights'],
+            0,
+            3
+        )
+        : [];
+
+
+$appointmentCount =
+    (int)(
+        $metrics['appointments']
+        ?? 0
+    );
+
+
+$cancelledCount =
+    (int)(
+        $metrics['cancelled']
+        ?? 0
+    );
+
+
+$cancellationRate =
+    $appointmentCount > 0
+        ? (
+            $cancelledCount
+            / $appointmentCount
+            * 100
+        )
+        : null;
+
+
 /*
 |--------------------------------------------------------------------------
 | DATE VALUES
@@ -1085,6 +1131,177 @@ foreach (
 
 }
 
+
+/* =========================================================
+   FOCUSED BOULEVARD API EXPERIENCE — 2026-09-11
+   ========================================================= */
+.bl-live-focus {
+    overflow: hidden;
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface-raised);
+}
+.bl-live-focus-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 15px;
+    background: #2e2a25;
+    color: #fff;
+}
+.bl-live-focus-number {
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    background: #b88b4f;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+}
+.bl-live-focus-head h2 {
+    margin: 0;
+    color: inherit;
+    font-size: 13px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+.bl-live-focus-head p {
+    margin: 2px 0 0;
+    color: rgba(255,255,255,.65);
+    font-size: 11px;
+}
+.bl-live-focus-grid {
+    display: grid;
+    grid-template-columns: repeat(6,minmax(0,1fr));
+    padding: 8px;
+}
+.bl-live-focus-card {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    min-height: 105px;
+    padding: 13px;
+    border-right: 1px solid var(--border);
+}
+.bl-live-focus-card:last-child { border-right: 0; }
+.bl-live-focus-card small {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 750;
+}
+.bl-live-focus-card strong {
+    font-size: clamp(18px,2vw,26px);
+    line-height: 1.1;
+    letter-spacing: -.035em;
+}
+.bl-live-focus-card span {
+    margin-top: auto;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.35;
+}
+.bl-live-focus-insights {
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: 8px;
+    padding: 0 8px 8px;
+}
+.bl-live-focus-insight {
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-soft);
+}
+.bl-live-focus-insight small {
+    display: block;
+    color: #9a6e36;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+.bl-live-focus-insight strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.35;
+}
+.bl-live-focus-insight p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.45;
+}
+.bl-live-deep-dive {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface-raised);
+}
+.bl-live-deep-dive > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px 18px;
+    cursor: pointer;
+    list-style: none;
+    background: color-mix(in srgb,#f1e7d6 42%,var(--surface-raised));
+}
+.bl-live-deep-dive > summary::-webkit-details-marker { display:none; }
+.bl-live-deep-dive > summary > div { display:grid; gap:3px; }
+.bl-live-deep-dive > summary span:first-child {
+    color: #9a6e36;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+.bl-live-deep-dive > summary strong { font-size: 13px; }
+.bl-live-deep-dive > summary small { color: var(--muted); font-size: 11px; }
+.bl-live-deep-action {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-raised);
+    color: var(--text) !important;
+    font-size: 10px !important;
+    font-weight: 850 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+}
+.bl-live-deep-dive[open] .bl-live-deep-action { font-size: 0 !important; }
+.bl-live-deep-dive[open] .bl-live-deep-action::after {
+    content: 'Hide details';
+    font-size: 10px;
+}
+.bl-live-deep-dive-body {
+    display: grid;
+    gap: 18px;
+    padding: 18px;
+    border-top: 1px solid var(--border);
+}
+@media (max-width: 1100px) {
+    .bl-live-focus-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    .bl-live-focus-card { border-bottom: 1px solid var(--border); }
+    .bl-live-focus-card:nth-child(3n) { border-right: 0; }
+    .bl-live-focus-card:nth-last-child(-n+3) { border-bottom: 0; }
+}
+@media (max-width: 760px) {
+    .bl-live-focus-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .bl-live-focus-card:nth-child(3n) { border-right: 1px solid var(--border); }
+    .bl-live-focus-card:nth-child(2n) { border-right: 0; }
+    .bl-live-focus-insights { grid-template-columns: 1fr; }
+    .bl-live-deep-dive > summary { align-items:flex-start; flex-direction:column; }
+    .bl-live-deep-dive-body { padding: 12px; }
+}
+
 </style>
 
 
@@ -1388,6 +1605,83 @@ foreach (
 
 
     <?php if ($success): ?>
+
+
+        <section class="bl-live-focus" aria-labelledby="bl-live-focus-title">
+            <header class="bl-live-focus-head">
+                <span class="bl-live-focus-number">1</span>
+                <div>
+                    <h2 id="bl-live-focus-title">Executive API snapshot</h2>
+                    <p>The operational signals to read first. Full API records remain available below.</p>
+                </div>
+            </header>
+
+            <div class="bl-live-focus-grid">
+                <article class="bl-live-focus-card">
+                    <small>Order revenue</small>
+                    <strong><?= e($money($metrics['revenue_cents'] ?? 0)) ?></strong>
+                    <span>Current totals returned by Boulevard</span>
+                </article>
+
+                <article class="bl-live-focus-card">
+                    <small>Appointments</small>
+                    <strong><?= e(number_format($appointmentCount)) ?></strong>
+                    <span>Selected reporting period</span>
+                </article>
+
+                <article class="bl-live-focus-card">
+                    <small>Completed</small>
+                    <strong><?= e(number_format((int)($metrics['completed'] ?? 0))) ?></strong>
+                    <span>Completed appointments</span>
+                </article>
+
+                <article class="bl-live-focus-card">
+                    <small>Cancellation rate</small>
+                    <strong><?= $cancellationRate === null ? '—' : e(number_format($cancellationRate, 1) . '%') ?></strong>
+                    <span><?= e(number_format($cancelledCount)) ?> cancelled appointments</span>
+                </article>
+
+                <article class="bl-live-focus-card">
+                    <small>Orders</small>
+                    <strong><?= e(number_format((int)($metrics['orders'] ?? 0))) ?></strong>
+                    <span>Closed in the selected period</span>
+                </article>
+
+                <article class="bl-live-focus-card">
+                    <small>Refunds</small>
+                    <strong><?= e($money($metrics['refund_cents'] ?? 0)) ?></strong>
+                    <span>Refund amount returned by Boulevard</span>
+                </article>
+            </div>
+
+            <?php if ($priorityInsights): ?>
+                <div class="bl-live-focus-insights" aria-label="Boulevard priority signals">
+                    <?php foreach ($priorityInsights as $insight): ?>
+                        <?php if (!is_array($insight)) continue; ?>
+                        <article class="bl-live-focus-insight">
+                            <small><?= e((string)($insight['method'] ?? $insight['priority'] ?? 'Signal')) ?></small>
+                            <strong><?= e((string)($insight['title'] ?? 'Performance signal')) ?></strong>
+                            <?php if (!empty($insight['observation'])): ?>
+                                <p><?= e((string)$insight['observation']) ?></p>
+                            <?php endif; ?>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
+
+
+        <details class="bl-live-deep-dive" data-bl-deep-dive>
+            <summary>
+                <div>
+                    <span>In-depth API data</span>
+                    <strong>Connection verification, raw KPIs, providers, appointments, orders, staff and services</strong>
+                    <small>The original Boulevard API console is preserved here for investigation and validation.</small>
+                </div>
+                <span class="bl-live-deep-action">Show details</span>
+            </summary>
+
+            <div class="bl-live-deep-dive-body">
 
 
         <!-- =====================================================
@@ -3297,6 +3591,10 @@ foreach (
             <?php endif; ?>
 
         </section>
+
+
+            </div>
+        </details>
 
 
     <?php endif; ?>

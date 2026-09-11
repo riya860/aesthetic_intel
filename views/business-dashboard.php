@@ -1,264 +1,371 @@
 <?php
-$adminParams=[];
-$businessId=(int)business_context_id();
-$features=business_feature_effective_states($businessId);
-$boulevardEnabled=!empty($features['boulevard']);
-$boulevardApiEnabled=$boulevardEnabled&&!empty($features['boulevard_api']);
-$gbpEnabled=!empty($features['gbp']);
-$podiumEnabled=!empty($features['podium']);
-$growth99Enabled=!empty($features['growth99']);
-$ga4Enabled=!empty($features['ga4']);
-$providerKpiShow=!empty($features['provider_kpi'])&&provider_kpi_navigation_visible($businessId);
-$autoBoulevard=$boulevardApiEnabled&&!empty($boulevardUserAccess['enabled']);
-$boulevardActionUrl=(!$autoBoulevard||auth_is_admin())?url('business-upload',$adminParams):url('business-boulevard-run');
-$boulevardActionLabel=(!$autoBoulevard||auth_is_admin())?'Add Data':'Run Weekly Report';
-$hasDashboardFeatures=$boulevardEnabled||$gbpEnabled||$podiumEnabled||$growth99Enabled||$ga4Enabled||$providerKpiShow;
-$featureCount=count(array_filter([$boulevardEnabled,$gbpEnabled,$podiumEnabled,$growth99Enabled,$ga4Enabled,$providerKpiShow]));
+$adminParams = [];
+$businessId = (int)business_context_id();
+$features = business_feature_effective_states($businessId);
 
-$latestValidationStatus=$latest?(string)($latest['validation_status']??'validated'):null;
-$latestAllowed=$latest&&report_validation_is_allowed($latestValidationStatus);
-$dashboard=$latestAllowed?(json_decode((string)$latest['dashboard_json'],true)?:[]):[];
-$dashboardKpis=$dashboard['kpis']??[];
-$dailyRows=$dashboard['daily']??[];
-$providers=$dashboard['providers']??[];
-$topRetail=$dashboard['top_retail']??[];
-$topServices=$dashboard['top_services']??[];
-$revenueCategories=$dashboard['revenue_categories']??[];
+$boulevardEnabled = !empty($features['boulevard']);
+$boulevardApiEnabled = $boulevardEnabled && !empty($features['boulevard_api']);
+$gbpEnabled = !empty($features['gbp']);
+$podiumEnabled = !empty($features['podium']);
+$growth99Enabled = !empty($features['growth99']);
+$ga4Enabled = !empty($features['ga4']);
+$providerKpiShow = !empty($features['provider_kpi']) && provider_kpi_navigation_visible($businessId);
+$aiWeeklyEnabled = !empty($features['ai_weekly_report']);
 
-$heroKeys=['total_revenue','appointments','active_mrr'];
-$heroMetrics=[];
-foreach($heroKeys as $key){if(isset($dashboardKpis[$key]))$heroMetrics[$key]=$dashboardKpis[$key];}
-$utilization=(float)($dashboardKpis['utilization']['value']??0);
-$utilGauge=max(0,min(100,$utilization));
-$maxDaily=0.0;
-foreach($dailyRows as $row)$maxDaily=max($maxDaily,(float)($row['revenue']??0));
-if(count($dailyRows)>14)$dailyRows=array_slice($dailyRows,-14);
+$autoBoulevard = $boulevardApiEnabled && !empty($boulevardUserAccess['enabled']);
+$boulevardActionUrl = (!$autoBoulevard || auth_is_admin())
+    ? url('business-upload', $adminParams)
+    : url('business-boulevard-run');
+$boulevardActionLabel = (!$autoBoulevard || auth_is_admin()) ? 'Add data' : 'Run weekly report';
 
-$mix=[];$mixTotal=0.0;
-foreach($revenueCategories as $row){$value=max(0,(float)($row['value']??0));if($value<=0)continue;$mix[]=['label'=>(string)($row['label']??'Other'),'value'=>$value];$mixTotal+=$value;}
-$mixColors=['#f06f5b','#b34f82','#6d4cf0','#281c5f','#19191b'];
-$mixStops=[];$cursor=0.0;
-if($mixTotal>0){foreach($mix as $i=>$row){$start=$cursor;$cursor+=($row['value']/$mixTotal)*100;$mixStops[]=$mixColors[$i%count($mixColors)].' '.number_format($start,2,'.','').'% '.number_format($cursor,2,'.','').'%';}}
-$mixStyle=$mixStops?'background:conic-gradient('.implode(',',$mixStops).')':'';
+$hasDashboardFeatures =
+    $boulevardEnabled || $gbpEnabled || $podiumEnabled || $growth99Enabled
+    || $ga4Enabled || $providerKpiShow || $aiWeeklyEnabled;
 
-$leaderItems=$topRetail?:$topServices;
-$leaderTitle=$topRetail?'Top Retail Products':'Top Services';
+$latestValidationStatus = $latest ? (string)($latest['validation_status'] ?? 'validated') : null;
+$latestAllowed = $latest && report_validation_is_allowed($latestValidationStatus);
+$dashboard = $latestAllowed ? (json_decode((string)$latest['dashboard_json'], true) ?: []) : [];
+$dashboardKpis = is_array($dashboard['kpis'] ?? null) ? $dashboard['kpis'] : [];
+$providers = is_array($dashboard['providers'] ?? null) ? $dashboard['providers'] : [];
+
+$metricTone = static function (?array $metric): string {
+    $tone = (string)($metric['sentiment'] ?? 'neutral');
+    return in_array($tone, ['positive', 'negative', 'neutral'], true) ? $tone : 'neutral';
+};
+$metricChange = static function (?array $metric): string {
+    if (!$metric) return 'No previous-period data';
+    $text = trim((string)change_text($metric));
+    return $text !== '' ? $text : 'No previous-period data';
+};
+
+$businessMetricRows = [];
+foreach ([
+    'total_revenue' => 'Total revenue',
+    'appointments' => 'Appointments',
+    'requested_appointments' => 'Requested appointments',
+    'service_revenue' => 'Service revenue',
+    'product_revenue' => 'Product revenue',
+    'membership_revenue' => 'Membership revenue',
+    'retail_revenue' => 'Retail revenue',
+    'retail_units' => 'Retail units sold',
+] as $key => $label) {
+    if (!isset($dashboardKpis[$key])) continue;
+    $businessMetricRows[] = [
+        'label' => $label,
+        'value' => metric_display($dashboardKpis[$key]),
+        'change' => $metricChange($dashboardKpis[$key]),
+        'tone' => $metricTone($dashboardKpis[$key]),
+    ];
+}
+
+$weeklyDashboard = [];
+if ($aiWeeklyEnabled && !empty($latestAiWeeklyReport)) {
+    $weeklyDashboard = ai_weekly_report_decode($latestAiWeeklyReport);
+    if (!is_array($weeklyDashboard)) $weeklyDashboard = [];
+}
+
+$liveSources = [];
+if ($boulevardApiEnabled) $liveSources[] = 'boulevard';
+if ($ga4Enabled) $liveSources[] = 'ga4';
+if ($gbpEnabled) $liveSources[] = 'gbp';
+$liveSourceJson = json_encode($liveSources, JSON_UNESCAPED_SLASHES) ?: '[]';
 ?>
-<div class="page-head ai-dashboard-head">
- <div>
-  <span class="eyebrow"><?=e($business['name'])?></span>
-  <h1>Performance Dashboard</h1>
-  <p>Your enabled intelligence sources, latest performance signals, and reporting actions in one focused workspace.</p>
- </div>
- <a class="btn btn-primary" href="<?=url('business-history',$adminParams)?>">Open Reports</a>
+
+<div
+    class="ai-live-dashboard"
+    data-live-dashboard
+    data-live-endpoint="<?=e(url('business-dashboard-live-data'))?>"
+    data-live-csrf="<?=e(csrf_token())?>"
+    data-live-sources='<?=e($liveSourceJson)?>'
+>
+    <div class="page-head ai-focus-page-head ai-live-page-head">
+        <div>
+            <span class="eyebrow"><?=e($business['name'])?></span>
+            <div class="ai-live-title-row">
+                <h1>Live Performance Intelligence</h1>
+                <span class="ai-live-badge"><i></i> Live API</span>
+            </div>
+            <p>Fresh connected-source data loads directly from GA4, Google Business Profile and Boulevard. Historical reports remain available below for deeper investigation.</p>
+        </div>
+        <div class="ai-focus-head-actions ai-live-head-actions">
+            <div class="ai-live-period-filter">
+                <label for="ai-live-period-select">View</label>
+                <select id="ai-live-period-select" data-live-period-select aria-label="Dashboard reporting period">
+                    <option value="weekly">Weekly · last 7 completed days</option>
+                    <option value="mtd">Monthly · MTD</option>
+                    <option value="ytd">Yearly · YTD</option>
+                </select>
+                <div class="ai-live-period-context" aria-live="polite">
+                    <strong data-live-period-title>Weekly view</strong>
+                    <small data-live-period-summary>Last 7 completed days vs previous 7 days</small>
+                </div>
+            </div>
+            <button class="btn btn-secondary" type="button" data-live-refresh-all>
+                <span data-refresh-label>Refresh live data</span>
+            </button>
+            <a class="btn btn-secondary" href="<?=url('business-history', $adminParams)?>">Reports &amp; history</a>
+        </div>
+    </div>
+
+    <div class="ai-live-freshness-strip" aria-live="polite">
+        <?php foreach ([
+            ['boulevard', 'Boulevard', $boulevardApiEnabled],
+            ['ga4', 'GA4', $ga4Enabled],
+            ['gbp', 'Google Business Profile', $gbpEnabled],
+        ] as [$sourceKey, $sourceLabel, $enabled]): ?>
+            <div class="ai-live-source-state <?= $enabled ? 'is-loading' : 'is-disabled' ?>" data-live-source-state="<?=e($sourceKey)?>">
+                <span class="ai-live-source-dot"></span>
+                <div>
+                    <strong><?=e($sourceLabel)?></strong>
+                    <small data-live-source-message><?= $enabled ? 'Fetching fresh API data…' : 'Not enabled' ?></small>
+                </div>
+                <?php if ($enabled): ?><span class="ai-live-mini-spinner" aria-hidden="true"></span><?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    <?php if (!$liveSources): ?>
+        <section class="ai-live-no-sources">
+            <div><strong>No live API sources are enabled for this business.</strong><p>Enable GA4, GBP or Boulevard API to populate the live executive layer. Existing reports and tools are preserved in In-depth analysis.</p></div>
+            <?php if (auth_is_admin()): ?><a class="btn btn-primary" href="<?=url('admin-business-form', ['id' => $businessId])?>">Manage feature controls</a><?php endif; ?>
+        </section>
+    <?php endif; ?>
+
+    <section class="ai-snapshot-section" aria-labelledby="live-overview-heading">
+        <header class="ai-snapshot-section-head">
+            <span class="ai-snapshot-number">1</span>
+            <div><h2 id="live-overview-heading">Live performance overview</h2><p><span data-live-period-copy>Weekly view</span> uses fresh API-backed KPIs only. Failed sources stay clearly unavailable rather than showing old data as current.</p></div>
+        </header>
+        <div class="ai-snapshot-kpi-grid ai-live-kpi-grid">
+            <?php foreach ([
+                ['boulevard','revenue','Total revenue','Boulevard'],
+                ['boulevard','appointments','Appointments','Boulevard'],
+                ['ga4','sessions','Website sessions','GA4'],
+                ['ga4','activeUsers','Active users','GA4'],
+                ['gbp','actions','GBP actions','Google Business Profile'],
+                ['gbp','website_clicks','Website clicks','Google Business Profile'],
+            ] as [$source, $key, $label, $sourceName]): ?>
+                <?php $enabled = in_array($source, $liveSources, true); ?>
+                <article class="ai-snapshot-kpi ai-live-kpi <?= $enabled ? 'is-loading' : 'is-disabled' ?>" data-live-metric="<?=e($source . ':' . $key)?>">
+                    <small<?= $source === 'boulevard' && $key === 'revenue' ? ' data-period-revenue-label' : '' ?>><?=e($label)?></small>
+                    <strong data-live-value><?= $enabled ? '<span class="ai-skeleton ai-skeleton-value"></span>' : '—' ?></strong>
+                    <span class="ai-snapshot-trend is-neutral" data-live-change><?= $enabled ? 'Loading fresh data…' : 'Source not enabled' ?></span>
+                    <em><?=e($sourceName)?> · <span data-live-period>Live</span></em>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="ai-snapshot-section" aria-labelledby="live-marketing-heading">
+        <header class="ai-snapshot-section-head">
+            <span class="ai-snapshot-number">2</span>
+            <div><h2 id="live-marketing-heading">Marketing &amp; visibility</h2><p>Fresh source summaries without exposing the full API payload.</p></div>
+        </header>
+        <div class="ai-focus-three-column">
+            <article class="ai-focus-source-summary ai-live-source-card" data-live-source-card="ga4">
+                <div class="ai-focus-source-head"><div><span class="ai-focus-source-kicker">Website / GA4</span><h3>Website demand</h3></div><span class="ai-focus-source-status" data-card-status><?= $ga4Enabled ? 'Loading' : 'Not enabled' ?></span></div>
+                <div class="ai-focus-mini-metrics">
+                    <?php foreach ([['sessions','Sessions'],['newUsers','New users'],['engagementRate','Engagement'],['keyEvents','Key events']] as [$key,$label]): ?>
+                        <div><span><?=e($label)?></span><strong data-live-inline="ga4:<?=e($key)?>"><?= $ga4Enabled ? '<span class="ai-skeleton ai-skeleton-small"></span>' : '—' ?></strong></div>
+                    <?php endforeach; ?>
+                </div>
+                <p class="ai-focus-source-note" data-source-note><?= $ga4Enabled ? 'Contacting Google Analytics…' : 'Enable GA4 to show live website data.' ?></p>
+                <div class="ai-focus-source-links"><a href="<?=url('business-ga4-api-data')?>">Open GA4 analysis</a><a href="<?=url('business-ai-extraction', ['source' => 'ga4'])?>">PDF upload</a></div>
+            </article>
+
+            <article class="ai-focus-source-summary ai-live-source-card" data-live-source-card="gbp">
+                <div class="ai-focus-source-head"><div><span class="ai-focus-source-kicker">Google Business Profile</span><h3>Local visibility</h3></div><span class="ai-focus-source-status" data-card-status><?= $gbpEnabled ? 'Loading' : 'Not enabled' ?></span></div>
+                <div class="ai-focus-mini-metrics">
+                    <?php foreach ([['website_clicks','Website clicks'],['call_clicks','Calls'],['direction_requests','Directions'],['search_impressions','Search views']] as [$key,$label]): ?>
+                        <div><span><?=e($label)?></span><strong data-live-inline="gbp:<?=e($key)?>"><?= $gbpEnabled ? '<span class="ai-skeleton ai-skeleton-small"></span>' : '—' ?></strong></div>
+                    <?php endforeach; ?>
+                </div>
+                <p class="ai-focus-source-note" data-source-note><?= $gbpEnabled ? 'Refreshing Google Business Profile…' : 'Enable GBP to show live local visibility.' ?></p>
+                <div class="ai-focus-source-links"><a href="<?=url('business-google')?>">Google connections</a><?php if ($gbpEnabled): ?><a href="<?=url('business-gbp')?>">GBP details</a><?php endif; ?></div>
+            </article>
+
+            <article class="ai-focus-source-summary ai-live-source-card" data-live-source-card="boulevard">
+                <div class="ai-focus-source-head"><div><span class="ai-focus-source-kicker">Boulevard</span><h3>Business pulse</h3></div><span class="ai-focus-source-status" data-card-status><?= $boulevardApiEnabled ? 'Loading' : 'Not enabled' ?></span></div>
+                <div class="ai-focus-mini-metrics">
+                    <?php foreach ([['revenue','Revenue'],['orders','Closed orders'],['service_bookings','Service bookings'],['cancellation_rate','Cancellation']] as [$key,$label]): ?>
+                        <div><span><?=e($label)?></span><strong data-live-inline="boulevard:<?=e($key)?>"><?= $boulevardApiEnabled ? '<span class="ai-skeleton ai-skeleton-small"></span>' : '—' ?></strong></div>
+                    <?php endforeach; ?>
+                </div>
+                <p class="ai-focus-source-note" data-source-note><?= $boulevardApiEnabled ? 'Contacting Boulevard…' : 'Enable Boulevard API to show live business data.' ?></p>
+                <div class="ai-focus-source-links"><?php if ($boulevardEnabled): ?><a href="<?=e($boulevardActionUrl)?>"><?=e($boulevardActionLabel)?></a><?php endif; ?><?php if (auth_is_admin() && $boulevardApiEnabled): ?><a href="<?=url('boulevard-live-console')?>">API console</a><?php endif; ?></div>
+            </article>
+        </div>
+    </section>
+
+    <section class="ai-live-decision-grid">
+        <section class="ai-snapshot-section ai-snapshot-section-fill" aria-labelledby="live-business-heading">
+            <header class="ai-snapshot-section-head"><span class="ai-snapshot-number">3</span><div><h2 id="live-business-heading">Revenue &amp; business performance</h2><p><span data-live-revenue-basis>Weekly revenue is summed across the latest seven completed business days.</span> Live Boulevard operating metrics use the selected reporting location.</p></div></header>
+            <div class="ai-focus-metric-list ai-live-business-list" data-live-business-list>
+                <?php foreach ([['revenue','Total revenue'],['appointments','Appointments'],['orders','Closed orders'],['service_bookings','Service bookings'],['refunds','Refunds'],['cancellation_rate','Cancellation rate']] as [$key,$label]): ?>
+                    <div data-live-row="boulevard:<?=e($key)?>"><span<?= $key === 'revenue' ? ' data-period-revenue-label' : '' ?>><?=e($label)?></span><strong><?= $boulevardApiEnabled ? '<span class="ai-skeleton ai-skeleton-small"></span>' : '—' ?></strong><em class="is-neutral"><?= $boulevardApiEnabled ? 'Loading…' : 'Not enabled' ?></em></div>
+                <?php endforeach; ?>
+            </div>
+        </section>
+
+        <section class="ai-snapshot-section ai-snapshot-section-fill" aria-labelledby="live-insights-heading">
+            <header class="ai-snapshot-section-head"><span class="ai-snapshot-number">4</span><div><h2 id="live-insights-heading">What needs attention</h2><p>Automatically prioritized from the fresh <span data-live-comparison-copy>weekly vs prior-week</span> API changes.</p></div></header>
+            <div class="ai-live-insights" data-live-insights>
+                <div class="ai-live-insight-loading"><span class="ai-live-spinner"></span><div><strong>Building live insights</strong><small>Waiting for connected sources to finish.</small></div></div>
+            </div>
+        </section>
+    </section>
+
+    <?php if ($weeklyDashboard): ?>
+        <section class="ai-focus-brief ai-focus-brief-ai ai-live-weekly-brief">
+            <div class="ai-focus-brief-mark">AI</div>
+            <div class="ai-focus-brief-copy"><span>Published weekly context</span><h2><?=e((string)($weeklyDashboard['report_title'] ?? 'AI Weekly Report'))?></h2><p>This report is preserved as published context. It is intentionally separate from the live API snapshot above.</p></div>
+            <a class="btn btn-primary" href="<?=url('business-ai-weekly-report', ['id' => (int)$latestAiWeeklyReport['id']])?>">Open weekly report</a>
+        </section>
+    <?php endif; ?>
 </div>
 
-<section class="ai-bento-dashboard" aria-label="Performance overview">
- <article class="ai-bento-card ai-performance-hero">
-  <div class="ai-card-topline">
-   <div><span class="ai-card-kicker"><?=$latestAllowed?'Latest Boulevard snapshot':'Performance workspace'?></span><h2><?=$latestAllowed?'Clinic Performance':'Ready for your next report'?></h2></div>
-   <span class="ai-dot-menu" aria-hidden="true">•••</span>
-  </div>
-  <?php if($latestAllowed):?>
-   <div class="ai-hero-metrics">
-    <?php foreach($heroMetrics as $metric):?>
-     <div><small><?=e($metric['label'])?></small><strong><?=metric_display($metric)?></strong><span class="trend trend-<?=e($metric['sentiment']??'neutral')?>"><?=e(change_text($metric))?></span></div>
-    <?php endforeach;?>
-   </div>
-   <div class="ai-revenue-flow" aria-label="Revenue trend for the latest reporting period">
-    <?php if($dailyRows&&$maxDaily>0):?>
-     <div class="ai-flow-grid">
-      <?php foreach($dailyRows as $row):$height=max(12,min(100,((float)($row['revenue']??0)/$maxDaily)*100));?>
-       <i style="--bar:<?=e(number_format($height,1,'.',''))?>%" title="<?=e((string)($row['label']??''))?> · <?=e(money((float)($row['revenue']??0)))?>"></i>
-      <?php endforeach;?>
-     </div>
-    <?php else:?><div class="ai-flow-empty">Performance trend will appear when daily revenue data is available.</div><?php endif;?>
-   </div>
-   <a class="ai-inline-link" href="<?=url('business-report',['id'=>$latest['id']]+$adminParams)?>">Explore complete report <span>→</span></a>
-  <?php else:?>
-   <div class="ai-hero-empty-copy">
-    <strong><?=e((string)$featureCount)?> enabled module<?=$featureCount===1?'':'s'?></strong>
-    <p>Add current data from any enabled source. Aesthetic Intel will keep the existing validation and reporting workflow while this dashboard updates automatically.</p>
-   </div>
-   <div class="ai-orbit-visual" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
-   <?php if($boulevardEnabled):?><a class="ai-inline-link" href="<?=e($boulevardActionUrl)?>"><?=e($boulevardActionLabel)?> <span>→</span></a><?php else:?><a class="ai-inline-link" href="<?=url('business-history')?>">Open reports <span>→</span></a><?php endif;?>
-  <?php endif;?>
- </article>
-<?php if(
-    !empty(
-        $featureStates[
-            'ai_weekly_report'
-        ]
-    )
-    &&
-    !empty(
-        $latestAiWeeklyReport
-    )
-):?>
+<details class="ai-deep-analysis" id="in-depth-analysis">
+    <summary>
+        <div>
+            <span>In-depth analysis</span>
+            <strong>Open source tools, validation states, full embedded reports and recent history</strong>
+        </div>
+        <span class="ai-deep-analysis-action">Show details</span>
+    </summary>
 
-<section
- class="content-card ai-weekly-dashboard-home"
- style="margin-top:18px"
->
+    <div class="ai-deep-analysis-body">
+        <?php if ($latestAllowed && ($businessMetricRows || $providers)): ?>
+            <section class="ai-focus-historical-grid">
+                <article class="panel">
+                    <div class="panel-head">
+                        <div><span class="eyebrow">Stored report snapshot</span><h2>Revenue &amp; business metrics</h2><p class="muted">Historical/validated reporting data is preserved here for comparison and audit context.</p></div>
+                    </div>
+                    <?php if ($businessMetricRows): ?>
+                        <div class="ai-focus-metric-list">
+                            <?php foreach ($businessMetricRows as $row): ?>
+                                <div><span><?=e($row['label'])?></span><strong><?=e($row['value'])?></strong><em class="is-<?=e($row['tone'])?>"><?=e($row['change'])?></em></div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </article>
+                <article class="panel">
+                    <div class="panel-head">
+                        <div><span class="eyebrow">Stored provider snapshot</span><h2>Provider performance</h2><p class="muted">The last validated provider rollup remains available without being presented as live API data.</p></div>
+                    </div>
+                    <?php if ($providers): ?>
+                        <div class="ai-focus-provider-list">
+                            <?php foreach (array_slice($providers, 0, 8) as $index => $provider): ?>
+                                <div><span class="ai-focus-rank"><?=e((string)($index + 1))?></span><div><strong><?=e((string)$provider['name'])?></strong><span><?=number_format((float)($provider['utilization'] ?? 0), 1)?>% utilization</span></div><b><?=money((float)($provider['service_revenue'] ?? 0))?></b></div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </article>
+            </section>
+        <?php endif; ?>
+        <?php if ($hasDashboardFeatures): ?>
+            <section>
+                <div class="panel-head dashboard-section-head">
+                    <div>
+                        <span class="eyebrow">Data &amp; integrations</span>
+                        <h2>Connected sources</h2>
+                        <p class="muted">The original upload, API, history and feature-control workflows are preserved here.</p>
+                    </div>
+                </div>
 
- <div class="card-head">
+                <div class="source-grid source-grid-premium ai-source-grid">
+                    <?php if ($boulevardEnabled): ?>
+                        <article class="source-card">
+                            <div class="source-main"><div class="source-icon source-boulevard">B</div><div><h3>Boulevard</h3><p>Revenue, appointments, memberships, retail and provider performance.</p></div></div>
+                            <div class="source-actions"><a class="btn btn-primary" href="<?=e($boulevardActionUrl)?>"><?=e($boulevardActionLabel)?></a><a class="btn btn-secondary" href="<?=url('business-history', $adminParams)?>">History</a></div>
+                        </article>
+                    <?php endif; ?>
 
-  <div>
+                    <?php if ($gbpEnabled): ?>
+                        <article class="source-card">
+                            <div class="source-main"><div class="source-icon source-gbp">G</div><div><h3>Google Business Profile</h3><p>Calls, directions, website clicks, interactions and reviews.</p></div></div>
+                            <div class="source-actions"><a class="btn btn-primary" href="<?=url('business-gbp', $adminParams)?>">Open GBP</a><a class="btn btn-secondary" href="<?=url('business-google')?>">Connection</a></div>
+                        </article>
+                    <?php endif; ?>
 
-   <p class="eyebrow">
-    AI Weekly Report
-   </p>
+                    <?php if ($ga4Enabled): ?>
+                        <article class="source-card">
+                            <div class="source-main"><div class="source-icon source-ga4">G4</div><div><h3>Google Analytics 4</h3><p>Use the live API dashboard or the existing saved-PDF workflow.</p></div></div>
+                            <div class="source-actions"><a class="btn btn-primary" href="<?=url('business-ga4-api-data')?>">API analysis</a><a class="btn btn-secondary" href="<?=url('business-ai-extraction', ['source' => 'ga4'])?>">PDF upload</a></div>
+                        </article>
+                    <?php endif; ?>
 
-   <h2>
-    Latest Weekly Intelligence
-   </h2>
+                    <?php if ($podiumEnabled): ?>
+                        <article class="source-card"><div class="source-main"><div class="source-icon source-podium">P</div><div><h3>Podium</h3><p>Inbox and call-report extraction.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-ai-extraction', ['source' => 'podium'])?>">Open Podium</a></div></article>
+                    <?php endif; ?>
 
-   <p>
-    <?=e(
-        $latestAiWeeklyReport[
-            'period_start'
-        ]
-    )?>
+                    <?php if ($growth99Enabled): ?>
+                        <article class="source-card"><div class="source-main"><div class="source-icon source-growth">99</div><div><h3>Growth99+</h3><p>Lead, Cliffhanger and CallRail insight reports.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-ai-extraction', ['source' => 'growth99'])?>">Open Growth99+</a></div></article>
+                    <?php endif; ?>
 
-    →
+                    <?php if ($providerKpiShow): ?>
+                        <article class="source-card source-card-provider-kpi"><div class="source-main"><div class="source-icon source-provider-kpi">KPI</div><div><h3>Provider KPI</h3><p>Provider scorecards, goals and clinic rollups.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-provider-kpi')?>">Open KPI</a></div></article>
+                    <?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
-    <?=e(
-        $latestAiWeeklyReport[
-            'period_end'
-        ]
-    )?>
-   </p>
+        <?php if ($boulevardEnabled): ?>
+            <section class="panel feature-panel">
+                <?php if ($latest): ?>
+                    <?php if (!report_validation_is_allowed($latestValidationStatus)): ?>
+                        <div><span class="validation-badge validation-danger">Review required</span><h2>Latest Boulevard report is being held safely</h2><p><?=e(reporting_us_date($latest['period_start']))?> - <?=e(reporting_us_date($latest['period_end']))?> is excluded from automatic comparisons until it is reviewed.</p></div>
+                        <a class="btn btn-secondary" href="<?=url('business-report', ['id' => $latest['id']] + $adminParams)?>">Review report</a>
+                    <?php else: ?>
+                        <div><span class="status status-completed">Latest Boulevard report ready</span><h2><?=e(reporting_us_date($latest['period_start']))?> - <?=e(reporting_us_date($latest['period_end']))?></h2><p>The complete infographic, revenue mix, provider detail and original report intelligence are still available.</p></div>
+                        <a class="btn btn-primary" href="<?=url('business-report', ['id' => $latest['id']] + $adminParams)?>">Open full report</a>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <div><span class="status status-draft">Boulevard ready</span><h2>No Boulevard report yet</h2><p>Add or run the first report to populate the business-performance snapshot.</p></div>
+                    <a class="btn btn-primary" href="<?=e($boulevardActionUrl)?>"><?=e($boulevardActionLabel)?></a>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
 
-  </div>
+        <?php if ($aiWeeklyEnabled && $weeklyDashboard): ?>
+            <section class="panel ai-embedded-weekly-report">
+                <div class="panel-head">
+                    <div><span class="eyebrow">Embedded detail</span><h2>Full AI Weekly Report</h2><p class="muted">Preserved from the previous dashboard, but collapsed behind the in-depth layer.</p></div>
+                    <a class="btn btn-secondary" href="<?=url('business-ai-weekly-report', ['id' => (int)$latestAiWeeklyReport['id']])?>">Open dedicated view</a>
+                </div>
+                <?php
+                $report = $latestAiWeeklyReport;
+                $dashboard = $weeklyDashboard;
+                require VIEW_PATH . '/partials/ai-weekly-dashboard.php';
+                ?>
+            </section>
+        <?php endif; ?>
 
-  <a
-   class="btn btn-secondary btn-small"
-   href="<?=url(
-       'business-ai-weekly-report',
-       [
-           'id' =>
-               (int)$latestAiWeeklyReport[
-                   'id'
-               ]
-       ]
-   )?>"
-  >
-   Open Full Report
-  </a>
+        <?php if ($boulevardEnabled): ?>
+            <section class="panel ai-history-panel">
+                <div class="panel-head"><div><span class="eyebrow">Timeline</span><h2>Recent Boulevard reports</h2></div><a href="<?=url('business-history', $adminParams)?>">View all</a></div>
+                <div class="history-cards">
+                    <?php foreach ($history as $h): ?>
+                        <a class="history-card" href="<?=$h['status'] === 'completed' ? url('business-report', ['id' => $h['id']] + $adminParams) : '#'?>">
+                            <strong><?=e(reporting_us_date($h['period_start']))?> - <?=e(reporting_us_date($h['period_end']))?></strong>
+                            <?php if ($h['status'] === 'completed'): $hm = report_validation_status_meta($h['validation_status'] ?? 'validated'); ?>
+                                <span class="validation-badge validation-<?=e($hm['class'])?>"><?=e($hm['label'])?></span>
+                            <?php else: ?>
+                                <span class="status status-<?=e($h['status'])?>"><?=e(ucfirst($h['status']))?></span>
+                            <?php endif; ?>
+                        </a>
+                    <?php endforeach; ?>
+                    <?php if (!$history): ?><p class="muted">No Boulevard history yet.</p><?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+    </div>
+</details>
 
- </div>
-
- <?php
-
- $report =
-     $latestAiWeeklyReport;
-
- $dashboard =
-     ai_weekly_report_decode(
-         $report
-     );
-
- require
-     VIEW_PATH
-     . '/partials/ai-weekly-dashboard.php';
-
- ?>
-
-</section>
-
-<?php endif;?>
- <article class="ai-bento-card ai-gauge-card">
-  <div class="ai-card-topline"><div><span class="ai-card-kicker"><?=$latestAllowed?'Utilization':'Workspace readiness'?></span><h2><?=$latestAllowed?'Capacity Conversion':'Enabled tools'?></h2></div><span class="ai-dot-menu" aria-hidden="true">•••</span></div>
-  <?php if($latestAllowed&&isset($dashboardKpis['utilization'])):?>
-   <div class="ai-semi-gauge" style="--gauge-angle:<?=e(number_format($utilGauge*1.8,1,'.',''))?>deg;--gauge-mid:<?=e(number_format($utilGauge*1.8*.58,1,'.',''))?>deg"><div><strong><?=e(number_format($utilization,1))?>%</strong><small><?=e(change_text($dashboardKpis['utilization']))?></small></div></div>
-   <div class="ai-gauge-caption"><strong><?= $utilization>=80?'Strong capacity use':($utilization>=60?'Healthy room to grow':'Capacity opportunity') ?></strong><span>Blended booked hours vs scheduled hours</span></div>
-  <?php else:?>
-   <?php $readinessPct=round(($featureCount/max(1,6))*100);?>
-   <div class="ai-semi-gauge ai-readiness-gauge" style="--gauge-angle:<?=e(number_format($readinessPct*1.8,1,'.',''))?>deg;--gauge-mid:<?=e(number_format($readinessPct*1.8*.58,1,'.',''))?>deg"><div><strong><?=e((string)$featureCount)?> / 6</strong><small>Core dashboard modules</small></div></div>
-   <div class="ai-gauge-caption"><strong>Workspace is configured</strong><span>Only enabled features are shown throughout the UI.</span></div>
-  <?php endif;?>
- </article>
-
- <?php $smallCards=[
-  $dashboardKpis['total_revenue']??null,
-  $dashboardKpis['average_ticket']??null,
-  $dashboardKpis['new_clients']??null,
- ];?>
- <?php foreach($smallCards as $idx=>$metric):?>
- <article class="ai-bento-card ai-mini-kpi ai-mini-kpi-<?=e((string)($idx+1))?>">
-  <?php if($metric):?><small><?=e($metric['label'])?></small><strong><?=metric_display($metric)?></strong><span class="trend trend-<?=e($metric['sentiment']??'neutral')?>"><?=e(change_text($metric))?></span>
-  <?php else:?><small><?=['Reporting sources','AI data sources','Performance tools'][$idx]?></small><strong><?=e((string)($idx===0?($boulevardEnabled+$gbpEnabled):($idx===1?($podiumEnabled+$growth99Enabled+$ga4Enabled):($providerKpiShow?1:0))))?></strong><span class="trend trend-neutral">Enabled for this business</span><?php endif;?>
- </article>
- <?php endforeach;?>
-
- <article class="ai-bento-card ai-leader-card">
-  <div class="ai-card-topline"><div><span class="ai-card-kicker">Performance leaders</span><h2><?=e($leaderItems?$leaderTitle:'Connected Sources')?></h2></div><span class="ai-dot-menu" aria-hidden="true">•••</span></div>
-  <?php if($leaderItems):?>
-   <div class="ai-leader-list">
-    <?php foreach(array_slice($leaderItems,0,4) as $i=>$item):?>
-     <div class="ai-leader-row"><span class="ai-rank"><?=e((string)($i+1))?></span><div><strong><?=e($item['name'])?></strong><small><?=isset($item['quantity'])&&$item['quantity']>0?e(numfmt($item['quantity'])).' sold':'Latest period'?></small></div><b><?=money((float)($item['value']??0))?></b></div>
-    <?php endforeach;?>
-   </div>
-  <?php else:?>
-   <div class="ai-source-pills"><?php foreach([['Boulevard',$boulevardEnabled],['GBP',$gbpEnabled],['Podium',$podiumEnabled],['Growth99+',$growth99Enabled],['GA4',$ga4Enabled],['Provider KPI',$providerKpiShow]] as [$label,$on]):if(!$on)continue;?><span><?=e($label)?></span><?php endforeach;?></div>
-   <p class="ai-card-note">Enabled sources stay available through the same tools and reporting routes.</p>
-  <?php endif;?>
-  <a class="ai-inline-link" href="<?=url('business-history')?>">See reporting history <span>→</span></a>
- </article>
-
- <article class="ai-bento-card ai-mix-card">
-  <div class="ai-card-topline"><div><span class="ai-card-kicker">Composition</span><h2><?=$mixTotal>0?'Revenue Mix':'Data Sources'?></h2></div><span class="ai-dot-menu" aria-hidden="true">•••</span></div>
-  <?php if($mixTotal>0):?>
-   <div class="ai-mix-layout"><div class="ai-donut" style="<?=e($mixStyle)?>"><span></span></div><div class="ai-mix-legend"><?php foreach(array_slice($mix,0,5) as $i=>$row):?><div><i style="--legend:<?=e($mixColors[$i%count($mixColors)])?>"></i><span><?=e($row['label'])?></span><b><?=e(number_format(($row['value']/$mixTotal)*100,0))?>%</b></div><?php endforeach;?></div></div>
-  <?php else:?>
-   <div class="ai-mix-placeholder"><span><?=e((string)$featureCount)?></span><p>enabled modules adapt into the dashboard automatically.</p></div>
-  <?php endif;?>
- </article>
-
- <article class="ai-bento-card ai-team-card">
-  <div class="ai-card-topline"><div><span class="ai-card-kicker">Provider performance</span><h2><?=$providers?'Top Providers':'Provider Intelligence'?></h2></div><span class="ai-dot-menu" aria-hidden="true">•••</span></div>
-  <?php if($providers):?>
-   <div class="ai-provider-stack"><?php foreach(array_slice($providers,0,4) as $i=>$provider):$parts=preg_split('/\s+/',trim((string)$provider['name']));$initials='';foreach(array_slice($parts,0,2) as $part)$initials.=strtoupper(substr($part,0,1));?><span style="--i:<?=e((string)$i)?>" title="<?=e($provider['name'])?>"><?=e($initials?:'P')?></span><?php endforeach;?><?php if(count($providers)>4):?><b>+<?=e((string)(count($providers)-4))?></b><?php endif;?></div>
-   <div class="ai-team-leader"><strong><?=e($providers[0]['name'])?></strong><span><?=money((float)$providers[0]['service_revenue'])?> service revenue</span></div>
-  <?php else:?>
-   <div class="ai-provider-stack ai-provider-empty"><span>KPI</span></div><div class="ai-team-leader"><strong><?=$providerKpiShow?'Provider KPI is enabled':'Provider KPI can be enabled per business'?></strong><span>Scorecards and goals keep their existing workflow.</span></div>
-  <?php endif;?>
-  <?php if($providerKpiShow):?><a class="ai-card-arrow" href="<?=url('business-provider-kpi')?>" aria-label="Open Provider KPI">→</a><?php endif;?>
- </article>
-</section>
-
-<?php if($hasDashboardFeatures):?>
-<div class="panel-head dashboard-section-head ai-sources-heading"><div><span class="eyebrow">Workspace tools</span><h2>Connected Sources</h2><p class="muted">The actions below use the exact same uploads, API runs, history, and feature controls as before.</p></div></div>
-<section class="source-grid source-grid-premium ai-source-grid">
- <?php if($boulevardEnabled):?><article class="source-card"><div class="source-main"><div class="source-icon source-boulevard">B</div><div><h3>Boulevard</h3><p><?=$autoBoulevard&&!auth_is_admin()?'Run the approved weekly API report with one click.':'Revenue, appointments, memberships, retail, and provider performance.'?></p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=e($boulevardActionUrl)?>"><?=e($boulevardActionLabel)?></a><a class="btn btn-secondary" href="<?=url('business-history',$adminParams)?>">History</a></div></article><?php endif;?>
- <?php if($gbpEnabled):?><article class="source-card"><div class="source-main"><div class="source-icon source-gbp">G</div><div><h3>Google Business Profile</h3><p>Track calls, directions, website clicks, interactions, and reviews.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-gbp',$adminParams)?>">Add Data</a><a class="btn btn-secondary" href="<?=url('business-gbp-history',$adminParams)?>">History</a></div></article><?php endif;?>
- <?php if($podiumEnabled):?><article class="source-card"><div class="source-main"><div class="source-icon source-podium">P</div><div><h3>Podium</h3><p>Upload Inbox and Calls reports for AI-powered extraction.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-ai-extraction',['source'=>'podium']+$adminParams)?>">Upload Report</a></div></article><?php endif;?>
- <?php if($growth99Enabled):?><article class="source-card"><div class="source-main"><div class="source-icon source-growth">99</div><div><h3>Growth99+</h3><p>Bring in lead, Cliffhanger, and CallRail insight reports.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-ai-extraction',['source'=>'growth99']+$adminParams)?>">Upload Report</a></div></article><?php endif;?>
- <?php if($ga4Enabled):?><article class="source-card"><div class="source-main"><div class="source-icon source-ga4">G4</div><div><h3>Google Analytics 4</h3><p>Extract users, engagement, page views, clicks, and conversions.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-ai-extraction',['source'=>'ga4']+$adminParams)?>">Upload Report</a></div></article><?php endif;?>
- <?php if($providerKpiShow):?><article class="source-card source-card-provider-kpi"><div class="source-main"><div class="source-icon source-provider-kpi">KPI</div><div><h3>Provider KPI Dashboard</h3><p>Provider scorecards, monthly goals, clinic rollups, and performance visibility.</p></div></div><div class="source-actions"><a class="btn btn-primary" href="<?=url('business-provider-kpi')?>">Open Dashboard</a></div></article><?php endif;?>
-</section>
-<?php else:?>
-<section class="empty-state"><div class="empty-icon">⚙</div><h2>Workspace is ready</h2><p>No optional business features are enabled right now. <?php if(auth_is_admin()):?>Use Edit Business → Feature Controls to turn on only the tools this business needs.<?php else:?>Ask your Super Admin to enable the tools your team uses.<?php endif;?></p><?php if(auth_is_admin()):?><a class="btn btn-primary" href="<?=url('admin-business-form',['id'=>$businessId])?>">Manage Feature Controls</a><?php endif;?></section>
-<?php endif;?>
-
-<?php if($boulevardEnabled):?>
- <?php if($latest):?>
-  <?php if(!report_validation_is_allowed($latestValidationStatus)):?>
-  <section class="panel feature-panel validation-dashboard-hold"><div><span class="validation-badge validation-danger">Review required</span><h2>Latest Boulevard report is being held safely</h2><p><?=e(reporting_us_date($latest['period_start']))?> – <?=e(reporting_us_date($latest['period_end']))?> is not being used as the current comparison because Report Intelligence found a possible period or data issue.</p></div><a class="btn btn-secondary" href="<?=url('business-report',['id'=>$latest['id']]+$adminParams)?>">Review Report</a></section>
-  <?php else:?>
-  <section class="panel feature-panel ai-latest-report-panel"><div><span class="status status-completed">Latest Boulevard report ready</span><h2><?=e(reporting_us_date($latest['period_start']))?> – <?=e(reporting_us_date($latest['period_end']))?></h2><p>Review the complete interactive infographic, provider performance, memberships, retail details, and insights.</p></div><a class="btn btn-primary" href="<?=url('business-report',['id'=>$latest['id']]+$adminParams)?>">Open Full Report</a></section>
-  <?php endif;?>
- <?php else:?><section class="empty-state"><div class="empty-icon">B</div><h2>No Boulevard report yet</h2><p><?=$autoBoulevard&&!auth_is_admin()?'Run the approved weekly Boulevard report. Aesthetic Intel will continue processing in the background.':'Upload one or more Boulevard CSV exports to create the first performance dashboard.'?></p><a class="btn btn-primary" href="<?=e($boulevardActionUrl)?>"><?=$autoBoulevard&&!auth_is_admin()?'Run Weekly Report':'Start First Upload'?></a></section><?php endif;?>
-<?php endif;?>
-
-<?php if($gbpEnabled):?>
- <?php if($latestGbp):$latestGbpValidation=(string)($latestGbp['validation_status']??'validated');?>
-  <?php if(!report_validation_is_allowed($latestGbpValidation)):?>
-  <section class="panel feature-panel validation-dashboard-hold"><div><span class="validation-badge validation-danger">Review required</span><h2>Latest Google Business Profile data is being held safely</h2><p><?=e(reporting_us_date($latestGbp['period_start']))?> – <?=e(reporting_us_date($latestGbp['period_end']))?> is not being used for automatic activity comparisons until it is reviewed.</p></div><a class="btn btn-secondary" href="<?=url('business-gbp-report',['id'=>$latestGbp['id']]+$adminParams)?>">Review GBP Report</a></section>
-  <?php else:$previous=gbp_previous_entries((int)$business['id'],(string)$latestGbp['period_end'],(int)$latestGbp['id'],2,(string)$latestGbp['frequency'],(string)$latestGbp['period_start']);$ga=gbp_build_analysis($latestGbp,$previous);?>
-  <section class="panel ai-gbp-snapshot"><div class="panel-head"><div><span class="eyebrow">Latest snapshot</span><h2>Google Business Profile</h2><p class="muted"><?=e(reporting_us_date($latestGbp['period_start']))?> – <?=e(reporting_us_date($latestGbp['period_end']))?></p></div><a class="btn btn-secondary" href="<?=url('business-gbp-report',['id'=>$latestGbp['id']]+$adminParams)?>">Open GBP Report</a></div><div class="kpi-grid four"><?php foreach(['interactions','calls','directions','website_clicks'] as $key):$x=$ga['metrics'][$key];?><article class="kpi-card"><small><?=e($x['label'])?></small><strong><?=$x['activity']===null?'Baseline':numfmt($x['activity'])?></strong><span class="trend trend-neutral"><?=e(gbp_activity_text($x))?></span></article><?php endforeach;?></div></section>
-  <?php endif;?>
- <?php else:?><section class="panel feature-panel"><div><span class="status status-draft">GBP ready to configure</span><h2>Add your first GBP baseline</h2><p>Enter the current cumulative totals. The next entry will calculate new activity automatically.</p></div><a class="btn btn-primary" href="<?=url('business-gbp',$adminParams)?>">Add GBP Baseline</a></section><?php endif;?>
-<?php endif;?>
-
-<?php if($boulevardEnabled):?><section class="panel ai-history-panel"><div class="panel-head"><div><span class="eyebrow">Timeline</span><h2>Recent Boulevard Reports</h2></div><a href="<?=url('business-history',$adminParams)?>">View all</a></div><div class="history-cards"><?php foreach($history as $h):?><a class="history-card" href="<?=$h['status']==='completed'?url('business-report',['id'=>$h['id']]+$adminParams):'#'?>"><strong><?=e(reporting_us_date($h['period_start']))?> – <?=e(reporting_us_date($h['period_end']))?></strong><?php if($h['status']==='completed'):$hm=report_validation_status_meta($h['validation_status']??'validated');?><span class="validation-badge validation-<?=e($hm['class'])?>"><?=e($hm['label'])?></span><?php else:?><span class="status status-<?=e($h['status'])?>"><?=e(ucfirst($h['status']))?></span><?php endif;?></a><?php endforeach;?><?php if(!$history):?><p class="muted">No Boulevard history yet.</p><?php endif;?></div></section><?php endif;?>
+<?php if (!$hasDashboardFeatures): ?>
+    <section class="empty-state">
+        <div class="empty-icon">⚙</div>
+        <h2>Workspace is ready</h2>
+        <p>No optional business features are enabled right now. <?php if (auth_is_admin()): ?>Use Edit Business → Feature Controls to turn on only the tools this business needs.<?php else: ?>Ask your Super Admin to enable the tools your team uses.<?php endif; ?></p>
+        <?php if (auth_is_admin()): ?><a class="btn btn-primary" href="<?=url('admin-business-form', ['id' => $businessId])?>">Manage feature controls</a><?php endif; ?>
+    </section>
+<?php endif; ?>

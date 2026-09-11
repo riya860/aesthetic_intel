@@ -423,7 +423,7 @@ try{
   |
   | This is ADDITIVE:
   | - Existing GA4 PDF upload remains unchanged.
-  | - Existing Brospro GA4 test console remains unchanged.
+  | - Brospro GA4 test console is temporarily disabled during the dashboard redesign.
   | - Google Connections remains the OAuth/property-management layer.
   |
   |--------------------------------------------------------------------------
@@ -743,7 +743,16 @@ try{
   case 'change-password':
    require_auth();if(is_post()){csrf_enforce();$password=(string)($_POST['new_password']??'');$confirm=(string)($_POST['confirm_password']??'');if(strlen($password)<8)flash('error','The password must contain at least 8 characters.');elseif(!hash_equals($password,$confirm))flash('error','The passwords do not match.');else{$s=db()->prepare('UPDATE users SET password_hash=?,must_change_password=0,password_changed_at=NOW(),password_reset_at=NULL,failed_attempts=0,locked_until=NULL WHERE id=?');$s->execute([password_hash($password,PASSWORD_DEFAULT),auth_id()]);auth_mark_password_changed();audit('user_password_changed');flash('success','Your password was changed successfully.');redirect(auth_is_admin()?url('admin-dashboard'):url('business-dashboard'));}}render('change-password',['title'=>'Choose a new password'],'public');break;
   case 'admin-dashboard':
-   require_admin();$counts=['businesses'=>(int)db()->query("SELECT COUNT(*) FROM businesses WHERE status='active'")->fetchColumn(),'users'=>(int)db()->query("SELECT COUNT(*) FROM users WHERE role='business_user' AND status='active'")->fetchColumn(),'reports'=>(int)db()->query("SELECT COUNT(*) FROM upload_batches WHERE status='completed'")->fetchColumn(),'failed'=>(int)db()->query("SELECT COUNT(*) FROM upload_batches WHERE status='failed'")->fetchColumn()];$recent=db()->query("SELECT ub.*,b.name business_name,u.name uploaded_by_name FROM upload_batches ub JOIN businesses b ON b.id=ub.business_id JOIN users u ON u.id=ub.uploaded_by ORDER BY ub.created_at DESC LIMIT 8")->fetchAll();render('admin-dashboard',['title'=>'Admin Dashboard','counts'=>$counts,'recent'=>$recent]);break;
+   require_admin();
+   /*
+    * Brospro GA4 test remains in the database for development purposes, but it
+    * is intentionally excluded from the executive Active Businesses count so
+    * the Super Admin overview reflects client workspaces rather than test data.
+    */
+   $counts=['businesses'=>(int)db()->query("SELECT COUNT(*) FROM businesses WHERE status='active' AND LOWER(TRIM(name)) <> 'brospro ga4 test'")->fetchColumn(),'users'=>(int)db()->query("SELECT COUNT(*) FROM users WHERE role='business_user' AND status='active'")->fetchColumn(),'reports'=>(int)db()->query("SELECT COUNT(*) FROM upload_batches WHERE status='completed'")->fetchColumn(),'failed'=>(int)db()->query("SELECT COUNT(*) FROM upload_batches WHERE status='failed'")->fetchColumn()];
+   // Recent upload rows are intentionally not queried on the overview anymore.
+   // Upload Monitoring remains available as its dedicated Super Admin tool.
+   render('admin-dashboard',['title'=>'Aesthetic Intel Overview','counts'=>$counts]);break;
   case 'admin-businesses':
    require_admin();$businesses=db()->query("SELECT b.*,(SELECT COUNT(*) FROM users u WHERE u.business_id=b.id AND u.status='active') user_count,(SELECT MAX(created_at) FROM upload_batches ub WHERE ub.business_id=b.id AND ub.status='completed') last_report_at FROM businesses b ORDER BY b.created_at DESC")->fetchAll();render('businesses',['title'=>'Businesses','businesses'=>$businesses]);break;
   case 'admin-business-delete':
@@ -888,7 +897,7 @@ try{
      else db()->prepare("UPDATE ai_settings SET last_test_status='failed',last_test_message=?,last_tested_at=?,updated_by=? WHERE id=1")->execute([substr($e->getMessage(),0,500),date('Y-m-d H:i:s'),auth_id()]);
      flash('error',$e->getMessage());
    }}
-   $settings=ai_settings();render('ai-settings',['title'=>'AI Integration','settings'=>$settings,'maskedKey'=>ai_masked_key($settings['api_key_encrypted']??null),'maskedAdminKey'=>ai_masked_admin_key($settings['admin_api_key_encrypted']??null)]);break;
+   $settings=ai_settings();render('ai-settings',['title'=>'Review with AI','settings'=>$settings,'maskedKey'=>ai_masked_key($settings['api_key_encrypted']??null),'maskedAdminKey'=>ai_masked_admin_key($settings['admin_api_key_encrypted']??null)]);break;
   case 'admin-uploads':
    require_admin();$batches=db()->query("SELECT ub.*,b.name business_name,u.name uploaded_by_name FROM upload_batches ub JOIN businesses b ON b.id=ub.business_id JOIN users u ON u.id=ub.uploaded_by ORDER BY ub.created_at DESC LIMIT 200")->fetchAll();render('admin-uploads',['title'=>'Upload Monitoring','batches'=>$batches]);break;
   case 'business-dashboard':
@@ -1246,6 +1255,57 @@ try{
 
     /*
      * ------------------------------------------------------------
+     * STORED GOOGLE CONTEXT FOR IN-DEPTH ANALYSIS ONLY
+     * ------------------------------------------------------------
+     *
+     * The executive/minimal dashboard does NOT present these stored values as
+     * current. Fresh GA4 / GBP / Boulevard values are fetched asynchronously
+     * through business-dashboard-live-data after the page shell renders.
+     * These local summaries remain available only to preserve the existing
+     * detailed/history experience.
+     */
+
+    $googleGa4Summary = [];
+    $googleGbpSummary = [];
+    $googleGa4Connection = null;
+    $googleGbpConnection = null;
+    $googleGa4LatestDate = '';
+    $googleGbpLatestDate = '';
+
+    try {
+        if (!empty($featureStates['ga4'])) {
+            $googleGa4Connection = googlehub_connection($businessId, 'ga4');
+            $googleGa4LatestDate = (string)(googlehub_ga4_latest_local_date($businessId) ?? '');
+
+            if ($googleGa4LatestDate !== '') {
+                $googleGa4Summary = googlehub_ga4_summary($businessId, 30);
+            }
+        }
+
+        if (!empty($featureStates['gbp'])) {
+            $googleGbpConnection = googlehub_connection($businessId, 'gbp');
+
+            $latestGoogleGbpStmt = db()->prepare(
+                'SELECT MAX(metric_date) FROM google_gbp_daily_metrics WHERE business_id=?'
+            );
+            $latestGoogleGbpStmt->execute([$businessId]);
+            $googleGbpLatestDate = (string)($latestGoogleGbpStmt->fetchColumn() ?: '');
+
+            if ($googleGbpLatestDate !== '') {
+                $googleGbpSummary = googlehub_gbp_summary($businessId, 30);
+            }
+        }
+    } catch (Throwable $googleSummaryError) {
+        error_log(
+            '[Focused business dashboard / Google summary] '
+            . $googleSummaryError->getMessage()
+        );
+    }
+
+
+
+    /*
+     * ------------------------------------------------------------
      * RENDER BUSINESS DASHBOARD
      * ------------------------------------------------------------
      *
@@ -1286,11 +1346,142 @@ try{
              */
             'latestAiWeeklyReport' =>
                 $latestAiWeeklyReport,
+
+            'googleGa4Summary' =>
+                $googleGa4Summary,
+
+            'googleGbpSummary' =>
+                $googleGbpSummary,
+
+            'googleGa4Connection' =>
+                $googleGa4Connection,
+
+            'googleGbpConnection' =>
+                $googleGbpConnection,
+
+            'googleGa4LatestDate' =>
+                $googleGa4LatestDate,
+
+            'googleGbpLatestDate' =>
+                $googleGbpLatestDate,
+
+            'pageScripts' => [
+                'business-dashboard-live.js',
+            ],
         ]
     );
 
 
     break;
+
+  case 'business-dashboard-live-data':
+    require_auth();
+
+    if (!is_post()) {
+        json_response([
+            'ok' => false,
+            'message' => 'POST required.',
+        ], 405);
+    }
+
+    csrf_enforce();
+
+    $businessId = (int)business_context_id();
+    if ($businessId < 1) {
+        json_response([
+            'ok' => false,
+            'message' => 'Select a business first.',
+        ], 422);
+    }
+
+    $source = strtolower(trim((string)($_POST['source'] ?? '')));
+    if (!in_array($source, ['ga4', 'gbp', 'boulevard'], true)) {
+        json_response([
+            'ok' => false,
+            'message' => 'Choose a valid live dashboard source.',
+        ], 422);
+    }
+
+    $periodKey = strtolower(trim((string)($_POST['period'] ?? 'weekly')));
+    if (!in_array($periodKey, ['weekly', 'mtd', 'ytd'], true)) {
+        json_response([
+            'ok' => false,
+            'source' => $source,
+            'message' => 'Choose Weekly, Monthly MTD, or Yearly YTD.',
+        ], 422);
+    }
+
+    $featureStates = business_feature_effective_states($businessId);
+    $featureKey = $source === 'boulevard' ? 'boulevard_api' : $source;
+
+    if (empty($featureStates[$featureKey])) {
+        json_response([
+            'ok' => false,
+            'source' => $source,
+            'message' => strtoupper($source) . ' is not enabled for this business.',
+        ], 403);
+    }
+
+    $businessStmt = db()->prepare('SELECT * FROM businesses WHERE id=? LIMIT 1');
+    $businessStmt->execute([$businessId]);
+    $business = $businessStmt->fetch();
+
+    if (!$business) {
+        json_response([
+            'ok' => false,
+            'source' => $source,
+            'message' => 'Business not found.',
+        ], 404);
+    }
+
+    try {
+        require_once __DIR__ . '/app/dashboard-live.php';
+
+        /*
+         * Boulevard can legitimately require several cursor pages. MTD/YTD
+         * ranges are intentionally allowed more time while the page keeps its
+         * per-source loading state visible to the user.
+         */
+        @set_time_limit($periodKey === 'ytd' ? 240 : ($periodKey === 'mtd' ? 180 : 120));
+
+        $payload = dashboard_live_fetch_source(
+            $businessId,
+            $business,
+            $source,
+            $periodKey
+        );
+
+        audit(
+            'business_dashboard_live_source_fetched',
+            [
+                'source' => $source,
+                'period_key' => $payload['period_key'] ?? $periodKey,
+                'period_start' => $payload['period_start'] ?? null,
+                'period_end' => $payload['period_end'] ?? null,
+                'resource_name' => $payload['resource_name'] ?? null,
+            ],
+            $businessId
+        );
+
+        json_response([
+            'ok' => true,
+            'data' => $payload,
+        ]);
+    } catch (Throwable $liveError) {
+        error_log(
+            '[Business dashboard live / ' . $source . '] '
+            . $liveError->getMessage()
+        );
+
+        json_response([
+            'ok' => false,
+            'source' => $source,
+            'message' => $liveError->getMessage(),
+        ], 422);
+    }
+
+    break;
+
   case 'business-provider-kpi':
    require_auth();$businessId=(int)business_context_id();if(!$businessId){flash('warning','Select a business first.');redirect(url('admin-businesses'));}$q=db()->prepare('SELECT * FROM businesses WHERE id=?');$q->execute([$businessId]);$business=$q->fetch();if(!$business)throw new RuntimeException('Business not found.');$settings=provider_kpi_settings($businessId);
    if(is_post()){csrf_enforce();provider_kpi_require_module_configuration_access();flash('warning','Provider KPI activation is managed from Super Admin → Businesses → Edit Business.');redirect(url('admin-business-form',['id'=>$businessId]));}
@@ -1643,6 +1834,21 @@ case 'business-ga4-callback':
 
 
 case 'business-ga4-test':
+    /*
+     * TEMPORARILY DISABLED — Brospro GA4 Test API
+     *
+     * The implementation is intentionally kept below so it can be restored
+     * later, but this pilot/test route is not exposed while the production
+     * dashboard is being simplified.
+     */
+    require_admin();
+    flash(
+        'warning',
+        'The Brospro GA4 Test API is temporarily disabled. Use the production GA4 API dashboard instead.'
+    );
+    redirect(url('business-ga4-api-data'));
+    break;
+
     require_admin();
 
     if (!is_post()) {
@@ -1840,6 +2046,21 @@ case 'business-ga4-disconnect':
     redirect(url('business-ga4-integration'));
 
 case 'ga4-test-console':
+    /*
+     * TEMPORARILY DISABLED — Brospro GA4 Test API
+     *
+     * The implementation is intentionally kept below so it can be restored
+     * later, but this pilot/test route is not exposed while the production
+     * dashboard is being simplified.
+     */
+    require_admin();
+    flash(
+        'warning',
+        'The Brospro GA4 Test API is temporarily disabled. Use the production GA4 API dashboard instead.'
+    );
+    redirect(url('business-ga4-api-data'));
+    break;
+
     require_admin();
 
     $stmt = db()->prepare(
@@ -1939,6 +2160,21 @@ try {
     break;
 
 case 'ga4-test-console-run':
+    /*
+     * TEMPORARILY DISABLED — Brospro GA4 Test API
+     *
+     * The implementation is intentionally kept below so it can be restored
+     * later, but this pilot/test route is not exposed while the production
+     * dashboard is being simplified.
+     */
+    require_admin();
+    flash(
+        'warning',
+        'The Brospro GA4 Test API is temporarily disabled. Use the production GA4 API dashboard instead.'
+    );
+    redirect(url('business-ga4-api-data'));
+    break;
+
     require_admin();
 
     if (!is_post()) {
@@ -2106,6 +2342,21 @@ case 'ga4-test-console-run':
         url('ga4-test-console')
     );
 case 'ga4-test-console-compare':
+    /*
+     * TEMPORARILY DISABLED — Brospro GA4 Test API
+     *
+     * The implementation is intentionally kept below so it can be restored
+     * later, but this pilot/test route is not exposed while the production
+     * dashboard is being simplified.
+     */
+    require_admin();
+    flash(
+        'warning',
+        'The Brospro GA4 Test API is temporarily disabled. Use the production GA4 API dashboard instead.'
+    );
+    redirect(url('business-ga4-api-data'));
+    break;
+
 
     require_admin();
 

@@ -722,3 +722,136 @@
     margin-top:8px;
     font-size:11px;
 }
+
+/* ============================================================
+   FOCUSED GA4 EXPERIENCE — 2026-09-11
+   Keeps the complete API dataset available, but moves secondary
+   tables behind an explicit in-depth analysis layer.
+   ============================================================ */
+.ga4-api-page{
+    --ga4-focus-ink:#2e2a25;
+    --ga4-focus-accent:#b58a50;
+    --ga4-focus-paper:#fbf9f3;
+}
+.ga4-api-kpis{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.ga4-api-kpi-card{
+    box-shadow:none;
+}
+.ga4-api-focus-nav{
+    position:static;
+    border-color:#e6e0d5;
+    background:#fbf9f3;
+    backdrop-filter:none;
+}
+.ga4-api-focus-nav a:last-child{
+    margin-left:auto;
+    background:var(--ga4-focus-ink);
+    color:#fff;
+}
+.ga4-api-deep-dive{
+    min-width:0;
+    overflow:hidden;
+    border:1px solid #ddd8cf;
+    border-radius:20px;
+    background:#fff;
+}
+.ga4-api-deep-dive>summary{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    padding:18px 20px;
+    cursor:pointer;
+    list-style:none;
+    background:var(--ga4-focus-paper);
+}
+.ga4-api-deep-dive>summary::-webkit-details-marker{
+    display:none;
+}
+.ga4-api-deep-dive>summary>div{
+    display:grid;
+    gap:4px;
+    min-width:0;
+}
+.ga4-api-deep-dive>summary strong{
+    color:var(--ga4-focus-ink);
+    font-size:15px;
+    line-height:1.4;
+}
+.ga4-api-deep-dive>summary small{
+    color:#77736c;
+    line-height:1.5;
+}
+.ga4-api-deep-dive-action{
+    flex:0 0 auto;
+    display:inline-flex;
+    align-items:center;
+    min-height:34px;
+    padding:0 12px;
+    border:1px solid #d7d0c5;
+    border-radius:999px;
+    background:#fff;
+    color:#4b4842;
+    font-size:12px;
+    font-weight:800;
+}
+.ga4-api-deep-dive[open] .ga4-api-deep-dive-action{
+    font-size:0;
+}
+.ga4-api-deep-dive[open] .ga4-api-deep-dive-action::after{
+    content:'Hide details';
+    font-size:12px;
+}
+.ga4-api-deep-dive-body{
+    display:grid;
+    gap:18px;
+    padding:18px;
+    border-top:1px solid #e6e0d7;
+}
+.ga4-api-secondary-kpis{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:10px;
+}
+.ga4-api-secondary-kpis .ga4-api-kpi-card{
+    padding:15px;
+    border-radius:14px;
+    background:#fbfbfa;
+}
+.ga4-api-secondary-kpis .ga4-api-kpi-card strong{
+    font-size:clamp(18px,2vw,25px);
+}
+.ga4-api-detail-nav{
+    position:static;
+    z-index:auto;
+    padding:8px;
+    background:#fff;
+    backdrop-filter:none;
+}
+
+@media(max-width:900px){
+    .ga4-api-kpis{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+    .ga4-api-secondary-kpis{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+    .ga4-api-focus-nav a:last-child{
+        margin-left:0;
+    }
+}
+@media(max-width:560px){
+    .ga4-api-kpis,
+    .ga4-api-secondary-kpis{
+        grid-template-columns:1fr 1fr;
+    }
+    .ga4-api-deep-dive>summary{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+    .ga4-api-deep-dive-body{
+        padding:12px;
+    }
+}

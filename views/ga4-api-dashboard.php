@@ -440,11 +440,12 @@ $fetchSucceeded =
                 GOOGLE ANALYTICS 4 · LIVE API
             </div>
 
-            <h1>GA4 Performance Intelligence</h1>
+            <h1>Website Performance</h1>
 
             <p>
-                Live reporting from the connected Google Analytics property.
-                PDF upload remains available as a separate reporting source.
+                A focused GA4 snapshot for day-to-day decisions. Open the
+                in-depth analysis only when you need acquisition, content,
+                audience, e-commerce or raw API detail.
             </p>
         </div>
 
@@ -667,14 +668,9 @@ $fetchSucceeded =
                 'sessions',
                 'activeUsers',
                 'newUsers',
-                'engagedSessions',
                 'engagementRate',
-                'bounceRate',
-                'averageSessionDuration',
                 'screenPageViews',
-                'eventCount',
                 'keyEvents',
-                'totalRevenue',
             ];
             ?>
 
@@ -700,15 +696,11 @@ $fetchSucceeded =
             <?php endforeach; ?>
         </section>
 
-        <nav class="ga4-api-section-nav">
+        <nav class="ga4-api-section-nav ga4-api-focus-nav" aria-label="GA4 focused navigation">
             <a href="#trend">Trend</a>
-            <a href="#acquisition">Acquisition</a>
-            <a href="#content">Content</a>
-            <a href="#audience">Audience</a>
-            <a href="#events">Events</a>
-            <a href="#ecommerce">E-commerce</a>
-            <a href="#pdf-compare">PDF Compare</a>
-            <a href="#explorer">Data Explorer</a>
+            <a href="#pdf-compare" data-ga4-open-deep>Compare with PDF</a>
+            <a href="#explorer" data-ga4-open-deep>Data Explorer</a>
+            <a href="#in-depth-analysis" data-ga4-open-deep>In-depth analysis</a>
         </nav>
 
         <section
@@ -738,6 +730,57 @@ $fetchSucceeded =
                 15
             ); ?>
         </section>
+
+        <details
+            class="ga4-api-deep-dive"
+            id="in-depth-analysis"
+            data-ga4-deep-dive
+            <?= ($pdfComparison || $customReport) ? 'open' : '' ?>
+        >
+            <summary>
+                <div>
+                    <span class="ga4-api-kicker">IN-DEPTH ANALYSIS</span>
+                    <strong>Acquisition, content, audience, conversion and source-level API data</strong>
+                    <small>The complete GA4 dataset is preserved here without crowding the primary dashboard.</small>
+                </div>
+                <span class="ga4-api-deep-dive-action">Show details</span>
+            </summary>
+
+            <div class="ga4-api-deep-dive-body">
+                <section class="ga4-api-secondary-kpis" aria-label="Additional GA4 metrics">
+                    <?php
+                    $secondaryCards = [
+                        'engagedSessions',
+                        'bounceRate',
+                        'averageSessionDuration',
+                        'eventCount',
+                        'totalRevenue',
+                    ];
+                    ?>
+
+                    <?php foreach ($secondaryCards as $metric): ?>
+                        <article class="ga4-api-kpi-card">
+                            <span><?= ga4dash_h(ga4dash_label($metric)) ?></span>
+                            <strong>
+                                <?= ga4dash_number(
+                                    $metric,
+                                    ga4dash_overview_metric($overview, $metric),
+                                    $currencyCode
+                                ) ?>
+                            </strong>
+                        </article>
+                    <?php endforeach; ?>
+                </section>
+
+                <nav class="ga4-api-section-nav ga4-api-detail-nav" aria-label="GA4 in-depth sections">
+                    <a href="#acquisition">Acquisition</a>
+                    <a href="#content">Content</a>
+                    <a href="#audience">Audience</a>
+                    <a href="#events">Events</a>
+                    <a href="#ecommerce">E-commerce</a>
+                    <a href="#pdf-compare">PDF Compare</a>
+                    <a href="#explorer">Data Explorer</a>
+                </nav>
 
         <section
             class="ga4-api-two-column"
@@ -1690,6 +1733,9 @@ $fetchSucceeded =
                 </div>
             <?php endif; ?>
         </section>
+
+            </div>
+        </details>
 
         <section class="ga4-api-footnote">
             <strong>PDF upload remains intact.</strong>

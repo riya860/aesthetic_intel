@@ -84,6 +84,8 @@ if (!function_exists('ai_nav_icon')) {
             'upload' => '<path d="M12 16V4m0 0L7 9m5-5 5 5M4 15v5h16v-5"/>',
             'backup' => '<path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5M12 7v5l3 2"/>',
             'sparkle' => '<path d="m12 3-1.6 4.4L6 9l4.4 1.6L12 15l1.6-4.4L18 9l-4.4-1.6L12 3ZM5 15l-.8 2.2L2 18l2.2.8L5 21l.8-2.2L8 18l-2.2-.8L5 15Zm14-2-1 2.8-2.8 1L18 18l1 2.8 1-2.8 2.8-1-2.8-1L19 13Z"/>',
+            'ai-review' => '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5"/><path d="m11 10-.8 2.2L8 13l2.2.8L11 16l.8-2.2L14 13l-2.2-.8L11 10Z"/>',
+            'weekly-report' => '<path d="M5 4h14v17H5z"/><path d="M8 2v4M16 2v4M5 8h14M8 12h3M8 16h8"/>',
             'dashboard' => '<path d="M3 13h8V3H3v10Zm10 8h8V11h-8v10ZM3 21h8v-6H3v6Zm10-12h8V3h-8v6Z"/>',
             'provider' => '<path d="M8 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M14 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M3 8h5M5.5 5.5v5"/>',
             'tools' => '<path d="M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L5 16l3 3 7.3-7.3a4 4 0 0 0 5-5L18 9l-2.4-2.4 2.3-2.3a4 4 0 0 0-3.2 2Z"/>',
@@ -106,7 +108,7 @@ if (!function_exists('ai_nav_icon')) {
     }
 }
 
-$toolsOpen = in_array(
+$toolsOpen = $googleConnectionsActive || in_array(
     $current,
     [
         'business-upload',
@@ -225,8 +227,8 @@ $toolsVisible =
                 class="nav-link <?=$current === 'admin-ai-settings' ? 'active' : ''?>"
                 href="<?=url('admin-ai-settings')?>"
             >
-                <?=ai_nav_icon('sparkle')?>
-                <span class="nav-text">AI Integration</span>
+                <?=ai_nav_icon('ai-review')?>
+                <span class="nav-text">Review with AI</span>
             </a>
 
             <!-- ==================================================
@@ -237,10 +239,11 @@ $toolsVisible =
                 href="<?=url('admin-ai-weekly-reports')?>"
                 <?=in_array($current, $adminAiWeeklyPages, true) ? 'aria-current="page"' : ''?>
             >
-                <?=ai_nav_icon('sparkle')?>
+                <?=ai_nav_icon('weekly-report')?>
                 <span class="nav-text">AI Weekly Reports</span>
             </a>
 
+            <?php if (false): // TEMPORARILY HIDDEN — OpenAI Weekly Test remains in code for future/internal use. ?>
             <a
                 class="nav-link <?=$current === 'admin-openai-weekly-test' ? 'active' : ''?>"
                 href="<?=url('admin-openai-weekly-test')?>"
@@ -248,6 +251,7 @@ $toolsVisible =
                 <?=ai_nav_icon('tools')?>
                 <span class="nav-text">OpenAI Weekly Test</span>
             </a>
+            <?php endif; ?>
 
             <a
                 class="nav-link <?=$current === 'admin-boulevard-report-types' ? 'active' : ''?>"
@@ -288,16 +292,6 @@ $toolsVisible =
                 <span class="nav-text">Dashboard</span>
             </a>
 
-            <a
-                class="nav-link <?=$googleConnectionsActive ? 'active' : ''?>"
-                href="<?=url('business-google')?>"
-                <?=$googleConnectionsActive ? 'aria-current="page"' : ''?>
-                title="Connect and sync Google Analytics 4 and Google Business Profile"
-            >
-                <?=ai_nav_icon('google')?>
-                <span class="nav-text">Google Connections</span>
-            </a>
-
             <?php if ($providerKpiVisible): ?>
                 <a
                     class="nav-link <?=in_array($current, $providerKpiPages, true) ? 'active' : ''?>"
@@ -320,11 +314,21 @@ $toolsVisible =
                         aria-expanded="<?=$toolsOpen ? 'true' : 'false'?>"
                     >
                         <?=ai_nav_icon('tools')?>
-                        <span class="nav-text">Tools</span>
+                        <span class="nav-text">Data &amp; Integrations</span>
                         <?=ai_nav_icon('chevron')?>
                     </button>
 
                     <div class="nav-submenu">
+
+                        <a
+                            class="nav-sublink <?=$googleConnectionsActive ? 'active' : ''?>"
+                            href="<?=url('business-google')?>"
+                            <?=$googleConnectionsActive ? 'aria-current="page"' : ''?>
+                            title="Connect and sync Google Analytics 4 and Google Business Profile"
+                        >
+                            <span>G</span>
+                            Google Connections
+                        </a>
 
                         <?php if (!empty($businessFeatures['gbp'])): ?>
                             <a
@@ -419,14 +423,16 @@ $toolsVisible =
     GA4 API Data
 </a>
 
-                                <a
-                                    class="nav-sublink <?=in_array($current, ['ga4-test-console', 'ga4-test-console-run', 'ga4-test-console-compare'], true) ? 'active' : ''?>"
-                                    href="<?=url('ga4-test-console')?>"
-                                >
-                                    <span>↳</span>
-                                    Brospro API Test
-                                    <em class="nav-beta-badge">TEST</em>
-                                </a>
+                                <?php if (false): // TEMPORARILY DISABLED: Brospro GA4 Test API ?>
+                                    <a
+                                        class="nav-sublink <?=in_array($current, ['ga4-test-console', 'ga4-test-console-run', 'ga4-test-console-compare'], true) ? 'active' : ''?>"
+                                        href="<?=url('ga4-test-console')?>"
+                                    >
+                                        <span>↳</span>
+                                        Brospro API Test
+                                        <em class="nav-beta-badge">TEST</em>
+                                    </a>
+                                <?php endif; ?>
                               <a
     href="<?= e(
         url(

@@ -483,6 +483,62 @@
         );
     }
 
+    function deepDiveNavigation() {
+        var details =
+            document.querySelector(
+                '[data-ga4-deep-dive]'
+            );
+
+        if (!details) {
+            return;
+        }
+
+        function openForHash() {
+            var hash =
+                window.location.hash;
+
+            if (!hash) {
+                return;
+            }
+
+            if (
+                hash === '#in-depth-analysis'
+                || details.querySelector(hash)
+            ) {
+                details.open = true;
+            }
+        }
+
+        document.querySelectorAll(
+            '[data-ga4-open-deep]'
+        ).forEach(function (link) {
+            link.addEventListener(
+                'click',
+                function () {
+                    details.open = true;
+                }
+            );
+        });
+
+        details.querySelectorAll(
+            'a[href^="#"]'
+        ).forEach(function (link) {
+            link.addEventListener(
+                'click',
+                function () {
+                    details.open = true;
+                }
+            );
+        });
+
+        openForHash();
+
+        window.addEventListener(
+            'hashchange',
+            openForHash
+        );
+    }
+
     document.addEventListener(
         'DOMContentLoaded',
         function () {
@@ -492,6 +548,7 @@
             fetchSuccessToast();
             savedPdfAutoCompare();
             drawChart();
+            deepDiveNavigation();
         }
     );
 })();

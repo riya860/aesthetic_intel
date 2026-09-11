@@ -16,6 +16,7 @@ foreach($types as $index=>$type){
  <div class="button-row"><a class="btn btn-secondary" href="<?=url('business-upload')?>">Manual CSV Uploads</a><a class="btn btn-secondary" href="<?=url('admin-boulevard-report-types')?>">Manage Report Types</a></div>
 </section>
 
+<?php if (false): // TEMPORARILY DISABLED: Brospro GA4 Test API ?>
 <!-- ======================================================
      GA4 TEST CONSOLE
      ====================================================== -->
@@ -32,6 +33,7 @@ foreach($types as $index=>$type){
   <a href="<?=e(url('ga4-test-console'))?>" class="btn btn-primary">Open GA4 Test Console</a>
  </div>
 </section>
+<?php endif; ?>
 
 <!-- ======================================================
      EXISTING BOULEVARD CONTENT CONTINUES
