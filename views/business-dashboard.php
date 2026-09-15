@@ -3,15 +3,6 @@ $adminParams = [];
 $businessId = (int)business_context_id();
 $features = business_feature_effective_states($businessId);
 
-/*
- * Frontend visibility is intentionally separate from feature enablement.
- * A feature can remain enabled/configured in the backend while its dashboard
- * presentation stays hidden until backing data is actually available.
- */
-$visibility = is_array($dashboardVisibility ?? null)
-    ? $dashboardVisibility
-    : [];
-
 $boulevardEnabled = !empty($features['boulevard']);
 $boulevardApiEnabled = $boulevardEnabled && !empty($features['boulevard_api']);
 $gbpEnabled = !empty($features['gbp']);
@@ -21,17 +12,13 @@ $ga4Enabled = !empty($features['ga4']);
 $providerKpiShow = !empty($features['provider_kpi']) && provider_kpi_navigation_visible($businessId);
 $aiWeeklyEnabled = !empty($features['ai_weekly_report']);
 
-$boulevardReportAvailable =
-    !empty($visibility['boulevard_report']['available'])
-    && !empty($latest);
-
-$boulevardHistoryAvailable =
-    !empty($visibility['boulevard_history']['available'])
-    && !empty($history);
-
-$aiWeeklyReportAvailable =
-    !empty($visibility['ai_weekly_report']['available'])
-    && !empty($latestAiWeeklyReport);
+/*
+ * Stored dashboard sections use the records already loaded by index.php.
+ * No extra index.php visibility registry is required.
+ */
+$boulevardReportAvailable = !empty($latest);
+$boulevardHistoryAvailable = !empty($history);
+$aiWeeklyReportAvailable = !empty($latestAiWeeklyReport);
 
 $autoBoulevard = $boulevardApiEnabled && !empty($boulevardUserAccess['enabled']);
 $boulevardActionUrl = (!$autoBoulevard || auth_is_admin())

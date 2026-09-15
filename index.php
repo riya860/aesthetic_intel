@@ -1306,122 +1306,6 @@ try{
 
     /*
      * ------------------------------------------------------------
-     * MINIMAL DASHBOARD FRONTEND VISIBILITY
-     * ------------------------------------------------------------
-     *
-     * IMPORTANT:
-     *
-     * Nothing is removed from the backend.
-     *
-     * This array only tells the frontend whether a dashboard block has
-     * backing data right now. Live GA4 / GBP / Boulevard blocks start hidden
-     * and are revealed by business-dashboard-live.js only after the matching
-     * live endpoint returns successfully.
-     *
-     * Stored/report-based modules can be decided immediately because their
-     * backend records have already been loaded above.
-     */
-
-    $dashboardVisibility = [
-
-        /*
-         * Live sources:
-         *
-         * `available` deliberately starts as false. The page must not show
-         * an empty/placeholder feature before the live request confirms that
-         * the source is currently available.
-         */
-        'ga4' => [
-            'enabled' =>
-                !empty($featureStates['ga4']),
-
-            'available' =>
-                false,
-
-            'mode' =>
-                'live',
-        ],
-
-        'gbp' => [
-            'enabled' =>
-                !empty($featureStates['gbp']),
-
-            'available' =>
-                false,
-
-            'mode' =>
-                'live',
-        ],
-
-        'boulevard' => [
-            'enabled' =>
-                !empty($featureStates['boulevard_api']),
-
-            'available' =>
-                false,
-
-            'mode' =>
-                'live',
-        ],
-
-
-        /*
-         * Stored/report-backed dashboard sections.
-         *
-         * These use existence of backend records only.
-         * No displayed metric value is interpreted here.
-         */
-        'boulevard_report' => [
-            'enabled' =>
-                !empty($featureStates['boulevard']),
-
-            'available' =>
-                is_array($latest)
-                && !empty($latest),
-
-            'mode' =>
-                'stored',
-        ],
-
-        'boulevard_history' => [
-            'enabled' =>
-                !empty($featureStates['boulevard']),
-
-            'available' =>
-                !empty($history),
-
-            'mode' =>
-                'stored',
-        ],
-
-        'gbp_manual_report' => [
-            'enabled' =>
-                !empty($featureStates['gbp']),
-
-            'available' =>
-                is_array($latestGbp)
-                && !empty($latestGbp),
-
-            'mode' =>
-                'stored',
-        ],
-
-        'ai_weekly_report' => [
-            'enabled' =>
-                !empty($featureStates['ai_weekly_report']),
-
-            'available' =>
-                is_array($latestAiWeeklyReport)
-                && !empty($latestAiWeeklyReport),
-
-            'mode' =>
-                'stored',
-        ],
-    ];
-
-
-    /*
-     * ------------------------------------------------------------
      * RENDER BUSINESS DASHBOARD
      * ------------------------------------------------------------
      *
@@ -1456,14 +1340,6 @@ try{
 
             'featureStates' =>
                 $featureStates,
-
-            /*
-             * Frontend-only visibility map.
-             *
-             * Backend feature definitions/data remain untouched.
-             */
-            'dashboardVisibility' =>
-                $dashboardVisibility,
 
             /*
              * NEW — Gemini AI Weekly Report
@@ -1542,15 +1418,6 @@ try{
         json_response([
             'ok' => false,
             'source' => $source,
-
-            /*
-             * The frontend uses this flag to keep the source hidden.
-             * The backend feature definition itself is not removed.
-             */
-            'availability' => [
-                'available' => false,
-            ],
-
             'message' => strtoupper($source) . ' is not enabled for this business.',
         ], 403);
     }
@@ -1563,10 +1430,6 @@ try{
         json_response([
             'ok' => false,
             'source' => $source,
-            'availability' => [
-                'available' => false,
-                'metrics' => [],
-            ],
             'message' => 'Business not found.',
         ], 404);
     }
@@ -1600,27 +1463,8 @@ try{
             $businessId
         );
 
-        $liveAvailability =
-            is_array($payload['availability'] ?? null)
-                ? $payload['availability']
-                : [
-                    'available' => false,
-                    'metrics' => [],
-                ];
-
         json_response([
             'ok' => true,
-            'source' => $source,
-
-            /*
-             * Availability is supplied by app/dashboard-live.php and remains
-             * separate from the metric values themselves. This lets the
-             * frontend hide parameters whose source data is unavailable
-             * without deleting or rewriting anything in the backend.
-             */
-            'availability' =>
-                $liveAvailability,
-
             'data' => $payload,
         ]);
     } catch (Throwable $liveError) {
@@ -1632,15 +1476,6 @@ try{
         json_response([
             'ok' => false,
             'source' => $source,
-
-            /*
-             * Keep the live source hidden when no usable live payload could
-             * be obtained. Nothing is removed from the backend.
-             */
-            'availability' => [
-                'available' => false,
-            ],
-
             'message' => $liveError->getMessage(),
         ], 422);
     }
