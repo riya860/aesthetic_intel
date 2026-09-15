@@ -157,17 +157,69 @@ function dashboard_live_metric(
     string $key,
     string $label,
     float $current,
-    float $previous,
-    string $format = 'number'
+    ?float $previous,
+    string $format = 'number',
+    bool $available = true
 ): array {
     return [
         'key' => $key,
         'label' => $label,
         'value' => $current,
         'previous' => $previous,
-        'change_percent' => dashboard_live_change($current, $previous),
+        'change_percent' => $available
+            ? dashboard_live_change($current, $previous)
+            : null,
         'format' => $format,
+        'available' => $available,
     ];
+}
+
+/**
+ * Build an explicit metric-availability map for the frontend.
+ *
+ * Availability is never inferred from the displayed numeric value. A metric
+ * can therefore legitimately be available with a value of 0, while a metric
+ * whose source field was not returned stays unavailable even though its
+ * normalized backend value may still be 0.
+ */
+function dashboard_live_metric_availability(array $metrics): array
+{
+    $availability = [];
+
+    foreach ($metrics as $metric) {
+        if (!is_array($metric)) {
+            continue;
+        }
+
+        $key = trim((string)($metric['key'] ?? ''));
+        if ($key === '') {
+            continue;
+        }
+
+        $availability[$key] = (($metric['available'] ?? false) === true);
+    }
+
+    return $availability;
+}
+
+function dashboard_live_availability(array $metrics): array
+{
+    $metricAvailability = dashboard_live_metric_availability($metrics);
+
+    return [
+        'available' => in_array(true, $metricAvailability, true),
+        'metrics' => $metricAvailability,
+    ];
+}
+
+function dashboard_live_summary_value(array $summary, string $key): float
+{
+    return (float)($summary['values'][$key] ?? 0);
+}
+
+function dashboard_live_summary_available(array $summary, string $key): bool
+{
+    return (($summary['available'][$key] ?? false) === true);
 }
 
 function dashboard_live_ga4_range_summary(int $businessId, string $start, string $end): array
@@ -208,22 +260,33 @@ function dashboard_live_ga4_range_summary(int $businessId, string $start, string
         $headers[$index] = (string)($header['name'] ?? '');
     }
 
-    $values = [];
-    $row = is_array($response['rows'][0] ?? null) ? $response['rows'][0] : [];
+    $values = array_fill_keys($metricNames, 0.0);
+    $available = array_fill_keys($metricNames, false);
+
+    $row = is_array($response['rows'][0] ?? null)
+        ? $response['rows'][0]
+        : [];
+
     foreach ((array)($row['metricValues'] ?? []) as $index => $value) {
         $name = (string)($headers[$index] ?? '');
-        if ($name !== '') {
-            $values[$name] = (float)($value['value'] ?? 0);
+
+        if (
+            $name === ''
+            || !array_key_exists($name, $values)
+            || !is_array($value)
+            || !array_key_exists('value', $value)
+        ) {
+            continue;
         }
+
+        $values[$name] = (float)$value['value'];
+        $available[$name] = true;
     }
 
-    foreach ($metricNames as $name) {
-        if (!array_key_exists($name, $values)) {
-            $values[$name] = 0.0;
-        }
-    }
-
-    return $values;
+    return [
+        'values' => $values,
+        'available' => $available,
+    ];
 }
 
 function dashboard_live_ga4(int $businessId, array $business, string $periodKey = 'weekly'): array
@@ -252,13 +315,33 @@ function dashboard_live_ga4(int $businessId, array $business, string $periodKey 
         $period['previous_end']->format('Y-m-d')
     );
 
+    $buildMetric = static function (
+        string $key,
+        string $label,
+        string $format = 'number'
+    ) use ($current, $previous): array {
+        $currentAvailable = dashboard_live_summary_available($current, $key);
+        $previousAvailable = dashboard_live_summary_available($previous, $key);
+
+        return dashboard_live_metric(
+            $key,
+            $label,
+            dashboard_live_summary_value($current, $key),
+            $previousAvailable
+                ? dashboard_live_summary_value($previous, $key)
+                : null,
+            $format,
+            $currentAvailable
+        );
+    };
+
     $metrics = [
-        dashboard_live_metric('sessions', 'Website sessions', (float)($current['sessions'] ?? 0), (float)($previous['sessions'] ?? 0)),
-        dashboard_live_metric('activeUsers', 'Active users', (float)($current['activeUsers'] ?? 0), (float)($previous['activeUsers'] ?? 0)),
-        dashboard_live_metric('newUsers', 'New users', (float)($current['newUsers'] ?? 0), (float)($previous['newUsers'] ?? 0)),
-        dashboard_live_metric('engagementRate', 'Engagement rate', (float)($current['engagementRate'] ?? 0), (float)($previous['engagementRate'] ?? 0), 'ratio_percent'),
-        dashboard_live_metric('keyEvents', 'Key events', (float)($current['keyEvents'] ?? 0), (float)($previous['keyEvents'] ?? 0)),
-        dashboard_live_metric('totalRevenue', 'GA4 revenue', (float)($current['totalRevenue'] ?? 0), (float)($previous['totalRevenue'] ?? 0), 'currency'),
+        $buildMetric('sessions', 'Website sessions'),
+        $buildMetric('activeUsers', 'Active users'),
+        $buildMetric('newUsers', 'New users'),
+        $buildMetric('engagementRate', 'Engagement rate', 'ratio_percent'),
+        $buildMetric('keyEvents', 'Key events'),
+        $buildMetric('totalRevenue', 'GA4 revenue', 'currency'),
     ];
 
     return array_merge(
@@ -269,6 +352,7 @@ function dashboard_live_ga4(int $businessId, array $business, string $periodKey 
             'fetched_at' => date(DATE_ATOM),
             'resource_name' => (string)($connection['selected_resource_name'] ?? 'Selected GA4 property'),
             'metrics' => $metrics,
+            'availability' => dashboard_live_availability($metrics),
         ],
         dashboard_live_period_payload($period)
     );
@@ -317,6 +401,7 @@ function dashboard_live_gbp_range_summary(
 
     $response = googlehub_api_get($businessId, 'gbp', $url);
     $totals = array_fill_keys($metricNames, 0.0);
+    $seen = array_fill_keys($metricNames, false);
 
     foreach (($response['multiDailyMetricTimeSeries'] ?? []) as $group) {
         if (!is_array($group)) {
@@ -333,6 +418,12 @@ function dashboard_live_gbp_range_summary(
                 continue;
             }
 
+            /*
+             * Presence of the requested time-series, not the numeric total,
+             * determines whether this parameter is available.
+             */
+            $seen[$metric] = true;
+
             foreach (($series['timeSeries']['datedValues'] ?? []) as $point) {
                 if (!is_array($point)) {
                     continue;
@@ -343,15 +434,28 @@ function dashboard_live_gbp_range_summary(
     }
 
     return [
-        'maps_impressions' =>
-            $totals['BUSINESS_IMPRESSIONS_DESKTOP_MAPS']
-            + $totals['BUSINESS_IMPRESSIONS_MOBILE_MAPS'],
-        'search_impressions' =>
-            $totals['BUSINESS_IMPRESSIONS_DESKTOP_SEARCH']
-            + $totals['BUSINESS_IMPRESSIONS_MOBILE_SEARCH'],
-        'website_clicks' => $totals['WEBSITE_CLICKS'],
-        'call_clicks' => $totals['CALL_CLICKS'],
-        'direction_requests' => $totals['BUSINESS_DIRECTION_REQUESTS'],
+        'values' => [
+            'maps_impressions' =>
+                $totals['BUSINESS_IMPRESSIONS_DESKTOP_MAPS']
+                + $totals['BUSINESS_IMPRESSIONS_MOBILE_MAPS'],
+            'search_impressions' =>
+                $totals['BUSINESS_IMPRESSIONS_DESKTOP_SEARCH']
+                + $totals['BUSINESS_IMPRESSIONS_MOBILE_SEARCH'],
+            'website_clicks' => $totals['WEBSITE_CLICKS'],
+            'call_clicks' => $totals['CALL_CLICKS'],
+            'direction_requests' => $totals['BUSINESS_DIRECTION_REQUESTS'],
+        ],
+        'available' => [
+            'maps_impressions' =>
+                $seen['BUSINESS_IMPRESSIONS_DESKTOP_MAPS']
+                && $seen['BUSINESS_IMPRESSIONS_MOBILE_MAPS'],
+            'search_impressions' =>
+                $seen['BUSINESS_IMPRESSIONS_DESKTOP_SEARCH']
+                && $seen['BUSINESS_IMPRESSIONS_MOBILE_SEARCH'],
+            'website_clicks' => $seen['WEBSITE_CLICKS'],
+            'call_clicks' => $seen['CALL_CLICKS'],
+            'direction_requests' => $seen['BUSINESS_DIRECTION_REQUESTS'],
+        ],
     ];
 }
 
@@ -390,22 +494,58 @@ function dashboard_live_gbp(int $businessId, array $business, string $periodKey 
     );
 
     $currentActions =
-        (float)($current['website_clicks'] ?? 0)
-        + (float)($current['call_clicks'] ?? 0)
-        + (float)($current['direction_requests'] ?? 0);
+        dashboard_live_summary_value($current, 'website_clicks')
+        + dashboard_live_summary_value($current, 'call_clicks')
+        + dashboard_live_summary_value($current, 'direction_requests');
 
     $previousActions =
-        (float)($previous['website_clicks'] ?? 0)
-        + (float)($previous['call_clicks'] ?? 0)
-        + (float)($previous['direction_requests'] ?? 0);
+        dashboard_live_summary_value($previous, 'website_clicks')
+        + dashboard_live_summary_value($previous, 'call_clicks')
+        + dashboard_live_summary_value($previous, 'direction_requests');
+
+    $currentActionsAvailable =
+        dashboard_live_summary_available($current, 'website_clicks')
+        && dashboard_live_summary_available($current, 'call_clicks')
+        && dashboard_live_summary_available($current, 'direction_requests');
+
+    $previousActionsAvailable =
+        dashboard_live_summary_available($previous, 'website_clicks')
+        && dashboard_live_summary_available($previous, 'call_clicks')
+        && dashboard_live_summary_available($previous, 'direction_requests');
+
+    $buildMetric = static function (
+        string $key,
+        string $label
+    ) use ($current, $previous): array {
+        $currentAvailable = dashboard_live_summary_available($current, $key);
+        $previousAvailable = dashboard_live_summary_available($previous, $key);
+
+        return dashboard_live_metric(
+            $key,
+            $label,
+            dashboard_live_summary_value($current, $key),
+            $previousAvailable
+                ? dashboard_live_summary_value($previous, $key)
+                : null,
+            'number',
+            $currentAvailable
+        );
+    };
 
     $metrics = [
-        dashboard_live_metric('actions', 'GBP actions', $currentActions, $previousActions),
-        dashboard_live_metric('website_clicks', 'Website clicks', (float)($current['website_clicks'] ?? 0), (float)($previous['website_clicks'] ?? 0)),
-        dashboard_live_metric('call_clicks', 'Calls', (float)($current['call_clicks'] ?? 0), (float)($previous['call_clicks'] ?? 0)),
-        dashboard_live_metric('direction_requests', 'Directions', (float)($current['direction_requests'] ?? 0), (float)($previous['direction_requests'] ?? 0)),
-        dashboard_live_metric('search_impressions', 'Search views', (float)($current['search_impressions'] ?? 0), (float)($previous['search_impressions'] ?? 0)),
-        dashboard_live_metric('maps_impressions', 'Maps views', (float)($current['maps_impressions'] ?? 0), (float)($previous['maps_impressions'] ?? 0)),
+        dashboard_live_metric(
+            'actions',
+            'GBP actions',
+            $currentActions,
+            $previousActionsAvailable ? $previousActions : null,
+            'number',
+            $currentActionsAvailable
+        ),
+        $buildMetric('website_clicks', 'Website clicks'),
+        $buildMetric('call_clicks', 'Calls'),
+        $buildMetric('direction_requests', 'Directions'),
+        $buildMetric('search_impressions', 'Search views'),
+        $buildMetric('maps_impressions', 'Maps views'),
     ];
 
     return array_merge(
@@ -416,6 +556,7 @@ function dashboard_live_gbp(int $businessId, array $business, string $periodKey 
             'fetched_at' => date(DATE_ATOM),
             'resource_name' => (string)($connection['selected_resource_name'] ?? 'Selected GBP location'),
             'metrics' => $metrics,
+            'availability' => dashboard_live_availability($metrics),
         ],
         dashboard_live_period_payload($period)
     );
@@ -617,13 +758,22 @@ function dashboard_live_boulevard(int $businessId, array $business, string $peri
     $current = dashboard_live_boulevard_totals_from_daily($currentDaily);
     $previous = dashboard_live_boulevard_totals_from_daily($previousDaily);
 
+    /*
+     * Boulevard availability is based on successful collection retrieval,
+     * not on the resulting numeric totals. Empty collections can therefore
+     * still represent available data without using the value itself as the
+     * visibility signal.
+     */
+    $ordersAvailable = is_array($currentOrders);
+    $appointmentsAvailable = is_array($currentAppointments);
+
     $metrics = [
-        dashboard_live_metric('revenue', (string)$period['revenue_label'], (float)$current['revenue'], (float)$previous['revenue'], 'currency'),
-        dashboard_live_metric('appointments', 'Appointments', (float)$current['appointments'], (float)$previous['appointments']),
-        dashboard_live_metric('orders', 'Closed orders', (float)$current['orders'], (float)$previous['orders']),
-        dashboard_live_metric('service_bookings', 'Service bookings', (float)$current['service_bookings'], (float)$previous['service_bookings']),
-        dashboard_live_metric('refunds', 'Refunds', (float)$current['refunds'], (float)$previous['refunds'], 'currency'),
-        dashboard_live_metric('cancellation_rate', 'Cancellation rate', (float)$current['cancellation_rate'], (float)$previous['cancellation_rate'], 'ratio_percent'),
+        dashboard_live_metric('revenue', (string)$period['revenue_label'], (float)$current['revenue'], (float)$previous['revenue'], 'currency', $ordersAvailable),
+        dashboard_live_metric('appointments', 'Appointments', (float)$current['appointments'], (float)$previous['appointments'], 'number', $appointmentsAvailable),
+        dashboard_live_metric('orders', 'Closed orders', (float)$current['orders'], (float)$previous['orders'], 'number', $ordersAvailable),
+        dashboard_live_metric('service_bookings', 'Service bookings', (float)$current['service_bookings'], (float)$previous['service_bookings'], 'number', $appointmentsAvailable),
+        dashboard_live_metric('refunds', 'Refunds', (float)$current['refunds'], (float)$previous['refunds'], 'currency', $ordersAvailable),
+        dashboard_live_metric('cancellation_rate', 'Cancellation rate', (float)$current['cancellation_rate'], (float)$previous['cancellation_rate'], 'ratio_percent', $appointmentsAvailable),
     ];
 
     $periodPayload = dashboard_live_period_payload($period);
@@ -641,6 +791,7 @@ function dashboard_live_boulevard(int $businessId, array $business, string $peri
             'business_name' => (string)($remoteBusiness['name'] ?? $business['name'] ?? ''),
             'daily_summary_days' => count($currentDaily),
             'metrics' => $metrics,
+            'availability' => dashboard_live_availability($metrics),
         ],
         $periodPayload
     );

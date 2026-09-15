@@ -57,6 +57,20 @@
     return periodConfig[currentPeriodKey] || periodConfig.weekly;
   }
 
+  function setVisible(element, visible) {
+    if (!element) return;
+    element.hidden = !visible;
+    element.classList.toggle('is-data-unavailable', !visible);
+  }
+
+  function setSectionVisible(name, visible) {
+    setVisible(root.querySelector(`[data-live-section="${name}"]`), visible);
+  }
+
+  function elementVisible(element) {
+    return Boolean(element && !element.hidden && !element.classList.contains('is-data-unavailable'));
+  }
+
   function compactNumber(value) {
     const number = Number(value || 0);
     const abs = Math.abs(number);
@@ -89,6 +103,36 @@
     return data.metrics.find((metric) => metric && metric.key === key) || null;
   }
 
+  function metricAvailable(data, key, metric = null) {
+    const resolvedMetric = metric || metricByKey(data, key);
+    if (!resolvedMetric) return false;
+
+    if (resolvedMetric.available === true) return true;
+    if (resolvedMetric.available === false) return false;
+
+    const map = data && data.availability && data.availability.metrics;
+    if (map && typeof map[key] === 'boolean') {
+      return map[key];
+    }
+
+    /*
+     * Availability must be explicit. We intentionally do not infer it from
+     * value, previous, 0, null, an empty string, or any other display value.
+     */
+    return false;
+  }
+
+  function sourceAvailable(data) {
+    if (!data) return false;
+
+    if (data.availability && typeof data.availability.available === 'boolean') {
+      return data.availability.available;
+    }
+
+    if (!Array.isArray(data.metrics)) return false;
+    return data.metrics.some((metric) => metric && metricAvailable(data, metric.key, metric));
+  }
+
   function isInverseMetric(metric) {
     return metric && ['refunds', 'cancellation_rate', 'cancelled_appointments'].includes(metric.key);
   }
@@ -104,7 +148,9 @@
 
   function changeText(metric, data) {
     const comparison = (data && data.comparison_label) || selectedConfig().comparison || 'prior period';
-    if (!metric || metric.change_percent === null || metric.change_percent === undefined) return `No comparable ${comparison}`;
+    if (!metric || metric.change_percent === null || metric.change_percent === undefined) {
+      return `No comparable ${comparison}`;
+    }
     const change = Number(metric.change_percent || 0);
     if (Math.abs(change) < 0.05) return `No material change vs ${comparison}`;
     const arrow = change > 0 ? '▲' : '▼';
@@ -195,11 +241,54 @@
     return `<span class="ai-skeleton ai-skeleton-${size}"></span>`;
   }
 
+  function hideSourcePresentation(source) {
+    setVisible(root.querySelector(`[data-live-source-state="${source}"]`), false);
+    setVisible(root.querySelector(`[data-live-source-card="${source}"]`), false);
+
+    root.querySelectorAll(`[data-live-metric^="${source}:"]`).forEach((el) => {
+      setVisible(el, false);
+    });
+
+    root.querySelectorAll(`[data-live-inline-item^="${source}:"]`).forEach((el) => {
+      setVisible(el, false);
+    });
+
+    root.querySelectorAll(`[data-live-row^="${source}:"]`).forEach((el) => {
+      setVisible(el, false);
+    });
+  }
+
+  function hideAllLivePresentation() {
+    sources.forEach(hideSourcePresentation);
+    setSectionVisible('freshness', false);
+    setSectionVisible('overview', false);
+    setSectionVisible('marketing', false);
+    setSectionVisible('business-performance', false);
+    setSectionVisible('insights', false);
+    setSectionVisible('decision-grid', false);
+  }
+
+  function refreshSectionVisibility() {
+    const freshnessVisible = Array.from(root.querySelectorAll('[data-live-source-state]')).some(elementVisible);
+    const overviewVisible = Array.from(root.querySelectorAll('[data-live-metric]')).some(elementVisible);
+    const marketingVisible = Array.from(root.querySelectorAll('[data-live-source-card]')).some(elementVisible);
+    const businessVisible = Array.from(root.querySelectorAll('[data-live-row^="boulevard:"]')).some(elementVisible);
+    const insightsVisible = elementVisible(root.querySelector('[data-live-section="insights"]'));
+
+    setSectionVisible('freshness', freshnessVisible);
+    setSectionVisible('overview', overviewVisible);
+    setSectionVisible('marketing', marketingVisible);
+    setSectionVisible('business-performance', businessVisible);
+    setSectionVisible('decision-grid', businessVisible || insightsVisible);
+  }
+
   function setSourceLoading(source) {
     const config = selectedConfig();
+    hideSourcePresentation(source);
+
     const state = root.querySelector(`[data-live-source-state="${source}"]`);
     if (state) {
-      state.classList.remove('is-live', 'is-error');
+      state.classList.remove('is-live', 'is-error', 'is-ready');
       state.classList.add('is-loading');
       const message = state.querySelector('[data-live-source-message]');
       if (message) message.textContent = `Fetching fresh ${config.label} data…`;
@@ -217,7 +306,7 @@
       card.classList.add('is-loading');
       const status = card.querySelector('[data-card-status]');
       if (status) {
-        status.classList.remove('is-connected', 'is-error');
+        status.classList.remove('is-connected', 'is-error', 'is-ready');
         status.textContent = 'Loading';
       }
       const note = card.querySelector('[data-source-note]');
@@ -251,65 +340,41 @@
         change.textContent = 'Loading…';
       }
     });
+
+    refreshSectionVisibility();
   }
 
   function setSourceError(source, message) {
     liveErrors.set(source, message || 'Live refresh failed.');
     liveData.delete(source);
+    hideSourcePresentation(source);
 
     const state = root.querySelector(`[data-live-source-state="${source}"]`);
     if (state) {
-      state.classList.remove('is-loading', 'is-live');
+      state.classList.remove('is-loading', 'is-live', 'is-ready');
       state.classList.add('is-error');
-      const text = state.querySelector('[data-live-source-message]');
-      if (text) text.textContent = message || 'Live refresh unavailable';
       const spinner = state.querySelector('.ai-live-mini-spinner');
       if (spinner) spinner.remove();
     }
 
-    const card = root.querySelector(`[data-live-source-card="${source}"]`);
-    if (card) {
-      card.classList.remove('is-loading', 'is-live');
-      card.classList.add('is-error');
-      const status = card.querySelector('[data-card-status]');
-      if (status) {
-        status.classList.remove('is-connected');
-        status.classList.add('is-error');
-        status.textContent = 'Unavailable';
-      }
-      const note = card.querySelector('[data-source-note]');
-      if (note) note.textContent = message || 'Fresh API data could not be loaded.';
-    }
-
-    root.querySelectorAll(`[data-live-metric^="${source}:"]`).forEach((cardEl) => {
-      cardEl.classList.remove('is-loading');
-      cardEl.classList.add('is-error');
-      const value = cardEl.querySelector('[data-live-value]');
-      const change = cardEl.querySelector('[data-live-change]');
-      if (value) value.textContent = '—';
-      if (change) {
-        change.className = 'ai-snapshot-trend is-negative';
-        change.textContent = 'Fresh API data unavailable';
-      }
-    });
-
-    root.querySelectorAll(`[data-live-inline^="${source}:"]`).forEach((el) => {
-      el.textContent = '—';
-    });
-
-    root.querySelectorAll(`[data-live-row^="${source}:"]`).forEach((row) => {
-      const value = row.querySelector('strong');
-      const change = row.querySelector('em');
-      if (value) value.textContent = '—';
-      if (change) {
-        change.className = 'is-negative';
-        change.textContent = 'Unavailable';
-      }
-    });
+    /*
+     * Deliberately do not render an "Unavailable" card/message to the business
+     * dashboard. The backend feature remains intact and a future successful
+     * refresh will reveal it automatically.
+     */
+    refreshSectionVisibility();
   }
 
   function renderSource(source, data) {
     liveErrors.delete(source);
+
+    if (!sourceAvailable(data)) {
+      liveData.delete(source);
+      hideSourcePresentation(source);
+      refreshSectionVisibility();
+      return;
+    }
+
     liveData.set(source, data);
     updatePeriodLabels(data);
 
@@ -323,9 +388,26 @@
       if (message) message.textContent = `Live · ${data.period_label || selectedConfig().label} · ${period}${resource}`;
       const spinner = state.querySelector('.ai-live-mini-spinner');
       if (spinner) spinner.remove();
+      setVisible(state, true);
     }
 
+    let sourceCardHasMetric = false;
     const sourceCard = root.querySelector(`[data-live-source-card="${source}"]`);
+
+    root.querySelectorAll(`[data-live-inline^="${source}:"]`).forEach((el) => {
+      const key = (el.getAttribute('data-live-inline') || '').split(':')[1];
+      const metric = metricByKey(data, key);
+      const available = metricAvailable(data, key, metric);
+      const item = root.querySelector(`[data-live-inline-item="${source}:${key}"]`) || el.parentElement;
+
+      setVisible(item, available);
+
+      if (available && metric) {
+        el.textContent = formatMetric(metric);
+        sourceCardHasMetric = true;
+      }
+    });
+
     if (sourceCard) {
       sourceCard.classList.remove('is-loading', 'is-error');
       sourceCard.classList.add('is-live');
@@ -340,12 +422,16 @@
         const resource = data.resource_name ? ` · ${data.resource_name}` : '';
         note.textContent = `Fresh ${data.period_label || selectedConfig().label} API data for ${period}${resource}.`;
       }
+      setVisible(sourceCard, sourceCardHasMetric);
     }
 
     root.querySelectorAll(`[data-live-metric^="${source}:"]`).forEach((card) => {
       const key = (card.getAttribute('data-live-metric') || '').split(':')[1];
       const metric = metricByKey(data, key);
-      if (!metric) return;
+      const available = metricAvailable(data, key, metric);
+      setVisible(card, available);
+
+      if (!available || !metric) return;
 
       card.classList.remove('is-loading', 'is-error');
       card.classList.add('is-live');
@@ -360,16 +446,14 @@
       if (periodEl) periodEl.textContent = period;
     });
 
-    root.querySelectorAll(`[data-live-inline^="${source}:"]`).forEach((el) => {
-      const key = (el.getAttribute('data-live-inline') || '').split(':')[1];
-      const metric = metricByKey(data, key);
-      if (metric) el.textContent = formatMetric(metric);
-    });
-
     root.querySelectorAll(`[data-live-row^="${source}:"]`).forEach((row) => {
       const key = (row.getAttribute('data-live-row') || '').split(':')[1];
       const metric = metricByKey(data, key);
-      if (!metric) return;
+      const available = metricAvailable(data, key, metric);
+      setVisible(row, available);
+
+      if (!available || !metric) return;
+
       const value = row.querySelector('strong');
       const change = row.querySelector('em');
       if (value) value.textContent = formatMetric(metric);
@@ -378,6 +462,8 @@
         change.textContent = changeText(metric, data);
       }
     });
+
+    refreshSectionVisibility();
   }
 
   async function fetchSource(source, generation, periodKey) {
@@ -413,6 +499,10 @@
         throw new Error((payload && payload.message) || `Live ${sourceLabels[source] || source} refresh failed.`);
       }
 
+      if (!payload.data.availability && payload.availability) {
+        payload.data.availability = payload.availability;
+      }
+
       renderSource(source, payload.data);
     } catch (error) {
       if (generation !== refreshGeneration || periodKey !== currentPeriodKey) return;
@@ -420,14 +510,13 @@
     }
   }
 
-  function sourceMetric(source, key) {
-    return metricByKey(liveData.get(source), key);
-  }
-
   function insightCandidate(source, key, title, inverse = false) {
     const data = liveData.get(source);
     const metric = metricByKey(data, key);
+
+    if (!metricAvailable(data, key, metric)) return null;
     if (!metric || metric.change_percent === null || metric.change_percent === undefined) return null;
+
     const change = Number(metric.change_percent || 0);
     if (Math.abs(change) < 3) return null;
 
@@ -445,9 +534,23 @@
     };
   }
 
+  function hasAnyAvailableMetric() {
+    return Array.from(liveData.values()).some((data) => {
+      if (!data || !Array.isArray(data.metrics)) return false;
+      return data.metrics.some((metric) => metric && metricAvailable(data, metric.key, metric));
+    });
+  }
+
   function renderInsights() {
     const container = root.querySelector('[data-live-insights]');
     if (!container) return;
+
+    if (!hasAnyAvailableMetric()) {
+      container.innerHTML = '';
+      setSectionVisible('insights', false);
+      refreshSectionVisibility();
+      return;
+    }
 
     const candidates = [
       insightCandidate('boulevard', 'revenue', 'Revenue movement'),
@@ -461,22 +564,14 @@
       insightCandidate('gbp', 'call_clicks', 'GBP call activity'),
     ].filter(Boolean);
 
-    liveErrors.forEach((message, source) => {
-      candidates.push({
-        priority: 'high',
-        score: 1000,
-        category: sourceLabels[source] || source,
-        title: 'Live source needs attention',
-        detail: message,
-      });
-    });
-
     candidates.sort((a, b) => b.score - a.score);
     const selected = candidates.slice(0, 4);
 
     if (!selected.length) {
       const comparison = selectedConfig().comparison;
-      container.innerHTML = `<article class="ai-live-insight is-low"><span>✓</span><div><small>Live read</small><strong>No large movement detected</strong><p>The connected live sources did not show a material change versus ${escapeHtml(comparison)} in the primary KPIs.</p></div></article>`;
+      container.innerHTML = `<article class="ai-live-insight is-low"><span>✓</span><div><small>Live read</small><strong>No large movement detected</strong><p>The available live metrics did not show a material change versus ${escapeHtml(comparison)}.</p></div></article>`;
+      setSectionVisible('insights', true);
+      refreshSectionVisibility();
       return;
     }
 
@@ -490,6 +585,9 @@
         </div>
       </article>
     `).join('');
+
+    setSectionVisible('insights', true);
+    refreshSectionVisibility();
   }
 
   function escapeHtml(value) {
@@ -505,7 +603,9 @@
     currentPeriodKey = periodSelect && periodConfig[periodSelect.value]
       ? periodSelect.value
       : currentPeriodKey;
+
     updatePeriodLabels();
+    hideAllLivePresentation();
 
     if (!endpoint || !csrf || sources.length === 0) {
       renderInsights();
@@ -529,13 +629,17 @@
 
     const insightContainer = root.querySelector('[data-live-insights]');
     if (insightContainer) {
-      insightContainer.innerHTML = `<div class="ai-live-insight-loading"><span class="ai-live-spinner"></span><div><strong>Building ${escapeHtml(selectedConfig().label)} insights</strong><small>Waiting for connected sources to finish.</small></div></div>`;
+      insightContainer.innerHTML = '';
     }
 
-    await Promise.allSettled(sources.map((source) => fetchSource(source, generation, requestedPeriod)));
+    await Promise.allSettled(
+      sources.map((source) => fetchSource(source, generation, requestedPeriod))
+    );
 
     if (generation !== refreshGeneration || requestedPeriod !== currentPeriodKey) return;
+
     renderInsights();
+    refreshSectionVisibility();
 
     if (button) {
       button.disabled = false;
@@ -556,5 +660,6 @@
   }
 
   updatePeriodLabels();
+  hideAllLivePresentation();
   refreshAll();
 })();
