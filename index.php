@@ -36,22 +36,35 @@ if (
 }
 
 
+/*
+ * ------------------------------------------------------------
+ * MAINTENANCE / COMING SOON
+ * ------------------------------------------------------------
+ *
+ * IMPORTANT:
+ * This must run for BOTH:
+ *
+ * - logged-out public visitors
+ * - logged-in users
+ *
+ * The maintenance function itself handles any authorized
+ * Super Admin / bypass behavior.
+ */
+feature_availability_enforce_request(
+    $page
+);
+
+
+/*
+ * ------------------------------------------------------------
+ * BUSINESS FEATURE CONTROLS
+ * ------------------------------------------------------------
+ *
+ * Business-specific feature controls require an authenticated
+ * user, so these remain behind auth_check().
+ */
 if (auth_check()) {
 
-    /*
-     * Maintenance / Coming Soon must run first.
-     *
-     * Super Admin bypass happens inside this function.
-     */
-    feature_availability_enforce_request(
-        $page
-    );
-
-
-    /*
-     * Existing business enable/disable controls remain
-     * completely intact.
-     */
     business_feature_enforce_request(
         $page
     );
